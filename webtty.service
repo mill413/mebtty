@@ -31,6 +31,7 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=/var/lib/webtty
 ProtectHome=read-only
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
