@@ -34,7 +34,7 @@
 
 ## 系统架构
 
-```
+```text
 浏览器 (xterm.js)
     │
     │  HTTPS / WSS
@@ -53,13 +53,13 @@ FastAPI 后端
 
 **技术栈**
 
-| 层级 | 技术 |
-|------|------|
-| 前端 | Vue 3 (Composition API)、Pinia、xterm.js v5 |
-| 后端 | FastAPI、SQLAlchemy (async)、aiosqlite |
-| 终端 | Python PTY (pty.fork)、login shell |
-| 数据库 | SQLite (默认)，支持 PostgreSQL |
-| 认证 | JWT with RSA、bcrypt 密码哈希 |
+| 层级   | 技术                                           |
+| ------ | ---------------------------------------------- |
+| 前端   | Vue 3 (Composition API)、Pinia、xterm.js v5    |
+| 后端   | FastAPI、SQLAlchemy (async)、aiosqlite         |
+| 终端   | Python PTY (pty.fork)、login shell             |
+| 数据库 | SQLite (默认)，支持 PostgreSQL                 |
+| 认证   | JWT with RSA、bcrypt 密码哈希                  |
 
 ## 快速开始
 
@@ -109,15 +109,15 @@ docker compose up -d
 
 所有设置通过环境变量配置（前缀：`WEBTTY_`）：
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `WEBTTY_SECRET_KEY` | 自动生成 | JWT 签名密钥。**生产环境必须设置。** |
-| `WEBTTY_DATABASE_URL` | `sqlite+aiosqlite:///./webtty.db` | 数据库连接字符串 |
-| `WEBTTY_STATIC_DIR` | 自动检测 | 前端构建输出路径 |
-| `WEBTTY_UPLOAD_DIR` | `./uploads` | 上传文件目录 |
-| `WEBTTY_ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | JWT 访问令牌有效期 |
-| `WEBTTY_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | JWT 刷新令牌有效期 |
-| `WEBTTY_MAX_UPLOAD_SIZE` | `104857600` | 最大上传大小（字节，100MB） |
+| 变量                                 | 默认值                             | 说明                                 |
+| ------------------------------------ | ---------------------------------- | ------------------------------------ |
+| `WEBTTY_SECRET_KEY`                  | 自动生成                           | JWT 签名密钥。**生产环境必须设置。** |
+| `WEBTTY_DATABASE_URL`                | `sqlite+aiosqlite:///./webtty.db`  | 数据库连接字符串                     |
+| `WEBTTY_STATIC_DIR`                  | 自动检测                           | 前端构建输出路径                     |
+| `WEBTTY_UPLOAD_DIR`                  | `./uploads`                        | 上传文件目录                         |
+| `WEBTTY_ACCESS_TOKEN_EXPIRE_MINUTES` | `60`                               | JWT 访问令牌有效期                   |
+| `WEBTTY_REFRESH_TOKEN_EXPIRE_DAYS`   | `7`                                | JWT 刷新令牌有效期                   |
+| `WEBTTY_MAX_UPLOAD_SIZE`             | `104857600`                        | 最大上传大小（字节，100MB）          |
 
 ### 生产环境示例
 
@@ -129,7 +129,7 @@ export WEBTTY_DATABASE_URL="sqlite+aiosqlite:////data/webtty.db"
 
 ## 项目结构
 
-```
+```text
 web-terminal/
 ├── backend/
 │   ├── app/
@@ -200,52 +200,52 @@ web-terminal/
 
 终端使用自定义二进制协议提高效率：
 
-```
+```text
 ┌─────────┬────────────┬─────────┐
 │ opcode  │  length    │ payload │
 │ (1 字节) │ (4 字节)   │ (N 字节) │
 └─────────┴────────────┴─────────┘
 ```
 
-| 操作码 | 名称 | 方向 | 说明 |
-|--------|------|------|------|
-| `0x01` | INPUT | 客户端 → 服务器 | 键盘输入 |
-| `0x02` | OUTPUT | 服务器 → 客户端 | 终端输出 |
-| `0x03` | RESIZE | 客户端 → 服务器 | 窗口大小变化 |
-| `0x04` | HEARTBEAT | 双向 | 心跳 ping |
-| `0x05` | CLOSE | 双向 | 优雅关闭 |
-| `0x06` | ERROR | 服务器 → 客户端 | 错误消息 |
+| 操作码 | 名称      | 方向             | 说明         |
+| ------ | --------- | ---------------- | ------------ |
+| `0x01` | INPUT     | 客户端 → 服务器  | 键盘输入     |
+| `0x02` | OUTPUT    | 服务器 → 客户端  | 终端输出     |
+| `0x03` | RESIZE    | 客户端 → 服务器  | 窗口大小变化 |
+| `0x04` | HEARTBEAT | 双向             | 心跳 ping    |
+| `0x05` | CLOSE     | 双向             | 优雅关闭     |
+| `0x06` | ERROR     | 服务器 → 客户端  | 错误消息     |
 
 ## API 参考
 
 ### 认证
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| POST | `/api/auth/register` | 创建新用户账户 |
-| POST | `/api/auth/login` | 认证并获取 JWT 令牌 |
-| POST | `/api/auth/refresh` | 刷新访问令牌 |
+| 方法 | 端点                     | 说明                |
+| ---- | ------------------------ | ------------------- |
+| POST | `/api/auth/register`     | 创建新用户账户      |
+| POST | `/api/auth/login`        | 认证并获取 JWT 令牌 |
+| POST | `/api/auth/refresh`      | 刷新访问令牌        |
 
 ### 会话
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/api/sessions` | 列出所有会话 |
-| POST | `/api/sessions` | 创建新终端会话 |
-| POST | `/api/sessions/{id}/reconnect` | 重新连接到现有会话 |
-| DELETE | `/api/sessions/{id}` | 删除会话 |
+| 方法   | 端点                            | 说明               |
+| ------ | ------------------------------- | ------------------ |
+| GET    | `/api/sessions`                 | 列出所有会话       |
+| POST   | `/api/sessions`                 | 创建新终端会话     |
+| POST   | `/api/sessions/{id}/reconnect`  | 重新连接到现有会话 |
+| DELETE | `/api/sessions/{id}`            | 删除会话           |
 
 ### 终端
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
+| 方法      | 端点                            | 说明                |
+| --------- | ------------------------------- | ------------------- |
 | WebSocket | `/api/terminal/ws/{session_id}` | 终端 WebSocket 连接 |
 
 ### 健康检查
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/api/health` | 健康检查端点 |
+| 方法 | 端点          | 说明         |
+| ---- | ------------- | ------------ |
+| GET  | `/api/health` | 健康检查端点 |
 
 ## 开发
 

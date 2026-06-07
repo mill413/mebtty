@@ -34,7 +34,7 @@
 
 ## Architecture
 
-```
+```text
 Browser (xterm.js)
     │
     │  HTTPS / WSS
@@ -53,13 +53,13 @@ FastAPI Backend
 
 **Tech Stack**
 
-| Layer | Technology |
-|-------|-----------|
+| Layer    | Technology                                  |
+| -------- | ------------------------------------------- |
 | Frontend | Vue 3 (Composition API), Pinia, xterm.js v5 |
-| Backend | FastAPI, SQLAlchemy (async), aiosqlite |
-| Terminal | Python PTY (pty.fork), login shell |
-| Database | SQLite (default), PostgreSQL supported |
-| Auth | JWT with RSA, bcrypt password hashing |
+| Backend  | FastAPI, SQLAlchemy (async), aiosqlite      |
+| Terminal | Python PTY (pty.fork), login shell          |
+| Database | SQLite (default), PostgreSQL supported      |
+| Auth     | JWT with RSA, bcrypt password hashing       |
 
 ## Quick Start
 
@@ -109,15 +109,15 @@ Open `http://localhost:8000` and register your first account.
 
 All settings are configured via environment variables (prefix: `WEBTTY_`):
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WEBTTY_SECRET_KEY` | Auto-generated | JWT signing key. **Set this in production.** |
-| `WEBTTY_DATABASE_URL` | `sqlite+aiosqlite:///./webtty.db` | Database connection string |
-| `WEBTTY_STATIC_DIR` | Auto-detected | Path to frontend build output |
-| `WEBTTY_UPLOAD_DIR` | `./uploads` | Directory for uploaded files |
-| `WEBTTY_ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | JWT access token lifetime |
-| `WEBTTY_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | JWT refresh token lifetime |
-| `WEBTTY_MAX_UPLOAD_SIZE` | `104857600` | Max upload size in bytes (100MB) |
+| Variable                               | Default                                | Description                                  |
+| -------------------------------------- | -------------------------------------- | -------------------------------------------- |
+| `WEBTTY_SECRET_KEY`                    | Auto-generated                         | JWT signing key. **Set this in production.** |
+| `WEBTTY_DATABASE_URL`                  | `sqlite+aiosqlite:///./webtty.db`      | Database connection string                   |
+| `WEBTTY_STATIC_DIR`                    | Auto-detected                          | Path to frontend build output                |
+| `WEBTTY_UPLOAD_DIR`                    | `./uploads`                            | Directory for uploaded files                 |
+| `WEBTTY_ACCESS_TOKEN_EXPIRE_MINUTES`   | `60`                                   | JWT access token lifetime                    |
+| `WEBTTY_REFRESH_TOKEN_EXPIRE_DAYS`     | `7`                                    | JWT refresh token lifetime                   |
+| `WEBTTY_MAX_UPLOAD_SIZE`               | `104857600`                            | Max upload size in bytes (100MB)             |
 
 ### Production Example
 
@@ -129,7 +129,7 @@ export WEBTTY_DATABASE_URL="sqlite+aiosqlite:////data/webtty.db"
 
 ## Project Structure
 
-```
+```text
 web-terminal/
 ├── backend/
 │   ├── app/
@@ -197,52 +197,52 @@ web-terminal/
 
 The terminal uses a custom binary protocol for efficiency:
 
-```
+```text
 ┌─────────┬────────────┬─────────┐
 │ opcode  │  length    │ payload │
 │ (1 byte)│ (4 bytes)  │ (N bytes)│
 └─────────┴────────────┴─────────┘
 ```
 
-| Opcode | Name | Direction | Description |
-|--------|------|-----------|-------------|
-| `0x01` | INPUT | Client → Server | Keyboard input |
-| `0x02` | OUTPUT | Server → Client | Terminal output |
-| `0x03` | RESIZE | Client → Server | Window size change |
-| `0x04` | HEARTBEAT | Bidirectional | Keep-alive ping |
-| `0x05` | CLOSE | Bidirectional | Graceful close |
-| `0x06` | ERROR | Server → Client | Error message |
+| Opcode  | Name      | Direction       | Description        |
+| ------- | --------- | --------------- | ------------------ |
+| `0x01`  | INPUT     | Client → Server | Keyboard input     |
+| `0x02`  | OUTPUT    | Server → Client | Terminal output    |
+| `0x03`  | RESIZE    | Client → Server | Window size change |
+| `0x04`  | HEARTBEAT | Bidirectional   | Keep-alive ping    |
+| `0x05`  | CLOSE     | Bidirectional   | Graceful close     |
+| `0x06`  | ERROR     | Server → Client | Error message      |
 
 ## API Reference
 
 ### Authentication
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Create a new user account |
-| POST | `/api/auth/login` | Authenticate and get JWT tokens |
-| POST | `/api/auth/refresh` | Refresh access token |
+| Method | Endpoint               | Description                        |
+| ------ | ---------------------- | ---------------------------------- |
+| POST   | `/api/auth/register`   | Create a new user account          |
+| POST   | `/api/auth/login`      | Authenticate and get JWT tokens    |
+| POST   | `/api/auth/refresh`    | Refresh access token               |
 
 ### Sessions
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/sessions` | List all sessions |
-| POST | `/api/sessions` | Create a new terminal session |
-| POST | `/api/sessions/{id}/reconnect` | Reconnect to an existing session |
-| DELETE | `/api/sessions/{id}` | Delete a session |
+| Method | Endpoint                       | Description                      |
+| ------ | ------------------------------ | -------------------------------- |
+| GET    | `/api/sessions`                | List all sessions                |
+| POST   | `/api/sessions`                | Create a new terminal session    |
+| POST   | `/api/sessions/{id}/reconnect` | Reconnect to an existing session |
+| DELETE | `/api/sessions/{id}`           | Delete a session                 |
 
 ### Terminal
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| WebSocket | `/api/terminal/ws/{session_id}` | Terminal WebSocket connection |
+| Method    | Endpoint                          | Description                   |
+| --------- | --------------------------------- | ----------------------------- |
+| WebSocket | `/api/terminal/ws/{session_id}`   | Terminal WebSocket connection |
 
 ### Health
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check endpoint |
+| Method | Endpoint        | Description           |
+| ------ | --------------- | --------------------- |
+| GET    | `/api/health`   | Health check endpoint |
 
 ## Development
 
