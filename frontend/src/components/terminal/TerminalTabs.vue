@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
@@ -18,9 +18,6 @@ const showShellMenu = ref(false)
 const newBtnRef = ref(null)
 const menuPos = ref({ top: 0, left: 0 })
 const tabBarRef = ref(null)
-const cornerLeft = ref(0)
-const cornerRight = ref(0)
-const cornerVisible = ref(false)
 
 const shells = [
   { value: '/bin/bash', label: 'Bash' },
@@ -117,44 +114,12 @@ function getShellIcon(shell) {
   return '>'
 }
 
-function updateCorners() {
-  if (!tabBarRef.value) return
-  const activeEl = tabBarRef.value.querySelector('.tab.active')
-  if (!activeEl) {
-    cornerVisible.value = false
-    return
-  }
-  const barRect = tabBarRef.value.getBoundingClientRect()
-  const tabRect = activeEl.getBoundingClientRect()
-  cornerLeft.value = tabRect.left - barRect.left
-  cornerRight.value = tabRect.right - barRect.left
-  cornerVisible.value = true
-}
-
-watch(() => props.activeTabId, () => {
-  nextTick(updateCorners)
-})
-
-watch(() => props.tabs, () => {
-  nextTick(updateCorners)
-}, { deep: true })
-
-let resizeObserver = null
-
 onMounted(() => {
   document.addEventListener('click', onClickOutside, true)
-  nextTick(updateCorners)
-  window.addEventListener('resize', updateCorners)
-  if (tabBarRef.value) {
-    resizeObserver = new ResizeObserver(updateCorners)
-    resizeObserver.observe(tabBarRef.value)
-  }
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onClickOutside, true)
-  window.removeEventListener('resize', updateCorners)
-  if (resizeObserver) resizeObserver.disconnect()
 })
 </script>
 
@@ -205,9 +170,6 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <span v-if="cornerVisible" class="tab-corner tab-corner--left" :style="{ left: (cornerLeft - 8) + 'px' }" />
-    <span v-if="cornerVisible" class="tab-corner tab-corner--right" :style="{ left: cornerRight + 'px' }" />
-
     <Teleport to="body">
       <div v-if="showShellMenu" class="shell-dropdown" :style="{ top: menuPos.top + 'px', left: menuPos.left + 'px' }" @click.stop>
         <button
@@ -233,23 +195,6 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-.tab-corner {
-  position: absolute;
-  bottom: 0;
-  width: 8px;
-  height: 8px;
-  background: var(--bg);
-  pointer-events: none;
-}
-
-.tab-corner--left {
-  border-top-right-radius: 8px;
-}
-
-.tab-corner--right {
-  border-top-left-radius: 8px;
-}
-
 .tabs-scroll {
   display: flex;
   flex: 1;
@@ -273,7 +218,7 @@ onBeforeUnmount(() => {
   height: 100%;
   background: transparent;
   border: none;
-  border-radius: 8px 8px 0 0;
+  border-radius: 16px 16px 0 0;
   color: var(--subtext);
   font-size: 12px;
   cursor: pointer;
@@ -292,6 +237,29 @@ onBeforeUnmount(() => {
   color: var(--text);
   box-shadow: inset 0 -3px 0 0 var(--accent);
   z-index: 1;
+}
+
+.tab.active::before,
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 100%;
+  box-shadow: 0 0 0 40px var(--bg);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.tab.active::before {
+  left: -20px;
+  clip-path: inset(50% -10px 0 50%);
+}
+
+.tab.active::after {
+  right: -20px;
+  clip-path: inset(50% 50% 0 -10px);
 }
 
 .tab-icon {
