@@ -199,7 +199,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex: 1;
   gap: 3px;
-  padding: 0 4px;
+  padding: 0 4px 0 16px;
   overflow-x: auto;
   scrollbar-width: none;
 }

@@ -250,7 +250,6 @@ function logout() {
   align-items: stretch;
   height: 36px;
   background: var(--bg-deep);
-  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -259,7 +258,6 @@ function logout() {
   align-items: center;
   gap: 6px;
   padding: 0 10px;
-  border-right: 1px solid var(--border);
   flex-shrink: 0;
 }
 

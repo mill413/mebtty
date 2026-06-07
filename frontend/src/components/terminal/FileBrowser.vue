@@ -173,9 +173,16 @@ function getFlatList() {
 
 // --- Click handlers ---
 function handleClick(item) {
-  selectedItem.value = item
-  if (item.is_dir) {
-    loadChildren(item)
+  if (selectedItem.value && selectedItem.value.path === item.path) {
+    selectedItem.value = null
+    if (item.is_dir) {
+      expandedPaths.delete(item.path)
+    }
+  } else {
+    selectedItem.value = item
+    if (item.is_dir) {
+      loadChildren(item)
+    }
   }
 }
 

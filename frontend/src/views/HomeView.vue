@@ -323,7 +323,6 @@ function formatDate(dateStr) {
   padding: 0 12px;
   height: 36px;
   background: var(--bg-deep);
-  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
