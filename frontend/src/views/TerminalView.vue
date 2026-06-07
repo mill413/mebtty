@@ -5,7 +5,6 @@ import { useTerminalStore } from '../stores/terminal'
 import { useAuthStore } from '../stores/auth'
 import TerminalTabs from '../components/terminal/TerminalTabs.vue'
 import TerminalPane from '../components/terminal/TerminalPane.vue'
-import TerminalToolbar from '../components/layout/TerminalToolbar.vue'
 import StatusBar from '../components/layout/StatusBar.vue'
 import FileBrowser from '../components/terminal/FileBrowser.vue'
 import { useI18n } from 'vue-i18n'
@@ -20,13 +19,18 @@ const authStore = useAuthStore()
 const terminalPaneRef = ref(null)
 const terminalDims = ref({ cols: 80, rows: 24 })
 const connectionStatus = ref('disconnected')
-const showSearch = ref(false)
 const showFileBrowser = ref(false)
+const showUserMenu = ref(false)
 
 onMounted(async () => {
   if (!authStore.user) {
     await authStore.fetchUser()
   }
+
+  // Close user menu on outside click
+  document.addEventListener('click', () => {
+    showUserMenu.value = false
+  })
 
   // If route has a sessionId, ensure there's a tab for it
   if (route.params.sessionId) {
@@ -78,45 +82,12 @@ function handleConnectionChange(status) {
   connectionStatus.value = status
 }
 
-function toggleSearch() {
-  showSearch.value = !showSearch.value
-  if (showSearch.value) {
-    nextTick(() => {
-      terminalPaneRef.value?.openSearch()
-    })
-  } else {
-    terminalPaneRef.value?.closeSearch()
-  }
-}
-
 function toggleFileBrowser() {
   showFileBrowser.value = !showFileBrowser.value
 }
 
 function closeFileBrowser() {
   showFileBrowser.value = false
-}
-
-function handleUpload() {
-  if (!terminalStore.activeSession) return
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.onchange = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('session_id', terminalStore.activeSession)
-    try {
-      const { default: api } = await import('../services/api')
-      await api.post('/api/files/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-    } catch (err) {
-      console.error('Upload failed:', err)
-    }
-  }
-  input.click()
 }
 
 function goHome() {
@@ -153,23 +124,36 @@ function logout() {
       </div>
       <div class="header-right">
         <ThemeToggle />
-        <span class="text-subtext user-label">{{ authStore.username }}</span>
-        <button class="btn-icon-sm" @click="logout" :title="t('terminal.logout')">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
+        <button
+          class="toolbar-btn"
+          :class="{ active: showFileBrowser }"
+          @click="toggleFileBrowser"
+          :title="t('toolbar.fileBrowser')"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
           </svg>
         </button>
+        <div class="user-menu-wrapper" @click.stop>
+          <button class="user-label" @click="showUserMenu = !showUserMenu">
+            {{ authStore.username }}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          <div v-if="showUserMenu" class="user-dropdown">
+            <button class="dropdown-item" @click="logout">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              {{ t('terminal.logout') }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-
-    <TerminalToolbar
-      @toggle-search="toggleSearch"
-      @toggle-file-browser="toggleFileBrowser"
-      :showFileBrowser="showFileBrowser"
-      @upload="handleUpload"
-    />
 
     <div class="terminal-main">
       <div class="terminal-body">
@@ -281,26 +265,84 @@ function logout() {
   flex-shrink: 0;
 }
 
-.user-label {
-  font-size: 12px;
-}
-
-.btn-icon-sm {
+.toolbar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   background: transparent;
   border: none;
   border-radius: 4px;
   color: var(--subtext);
   transition: all var(--transition);
+  cursor: pointer;
 }
 
-.btn-icon-sm:hover {
+.toolbar-btn:hover {
   background: var(--surface);
   color: var(--text);
+}
+
+.toolbar-btn.active {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.user-menu-wrapper {
+  position: relative;
+}
+
+.user-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--subtext);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.user-label:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.dropdown-item:hover {
+  background: var(--overlay);
 }
 
 .terminal-body {
