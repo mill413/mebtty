@@ -11,7 +11,8 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isAuthenticated: (state) => !!state.token,
     isAdmin: (state) => state.user?.is_admin === true,
-    username: (state) => state.user?.username || ''
+    username: (state) => state.user?.username || '',
+    avatar: (state) => state.user?.avatar ? `/api/auth/avatar/${state.user.avatar}` : null
   },
 
   actions: {

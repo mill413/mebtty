@@ -136,7 +136,8 @@ function formatDate(dateStr) {
         </button>
         <div class="user-menu-wrapper" @click.stop>
           <button class="user-label" @click="showUserMenu = !showUserMenu">
-            {{ authStore.username }}
+            <img v-if="authStore.avatar" :src="authStore.avatar" class="user-avatar" :alt="authStore.username" />
+            <span v-else class="username">{{ authStore.username }}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="6 9 12 15 18 9" />
             </svg>
@@ -349,6 +350,13 @@ function formatDate(dateStr) {
 .username {
   color: var(--subtext);
   font-size: 13px;
+}
+
+.user-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .btn-icon {

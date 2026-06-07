@@ -43,3 +43,4 @@ Thumbs.db
 # Runtime
 .webtty.pid
 backend/data/
+backend/uploads/
