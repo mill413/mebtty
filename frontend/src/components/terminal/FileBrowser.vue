@@ -6,7 +6,13 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
+const props = defineProps({
+  position: { type: String, default: 'right' }
+})
+
 const emit = defineEmits(['close'])
+
+const isLeft = computed(() => props.position === 'left')
 
 // --- Resize state ---
 const sidebarWidth = ref(280)
@@ -25,7 +31,7 @@ function startResize(e) {
 }
 
 function onResize(e) {
-  const diff = resizeStartX - e.clientX
+  const diff = isLeft.value ? e.clientX - resizeStartX : resizeStartX - e.clientX
   const newWidth = resizeStartWidth + diff
   sidebarWidth.value = Math.max(180, Math.min(600, newWidth))
 }
@@ -351,7 +357,7 @@ function getIndentStyle(depth) {
 <template>
   <div
     class="file-browser"
-    :class="{ resizing: isResizing }"
+    :class="{ resizing: isResizing, 'is-left': isLeft }"
     :style="{ width: sidebarWidth + 'px' }"
   >
     <div class="fb-resize-handle" @mousedown="startResize"></div>
@@ -567,6 +573,11 @@ function getIndentStyle(depth) {
   user-select: none;
 }
 
+.file-browser.is-left {
+  border-left: none;
+  border-right: 1px solid var(--border);
+}
+
 .file-browser.resizing {
   transition: none;
 }
@@ -580,6 +591,11 @@ function getIndentStyle(depth) {
   cursor: col-resize;
   z-index: 10;
   transition: background 0.15s;
+}
+
+.file-browser.is-left .fb-resize-handle {
+  left: auto;
+  right: 0;
 }
 
 .fb-resize-handle:hover,
