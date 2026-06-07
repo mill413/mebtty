@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
@@ -15,6 +15,8 @@ const editingTabId = ref(null)
 const editingTitle = ref('')
 const dragTabId = ref(null)
 const showShellMenu = ref(false)
+const newBtnRef = ref(null)
+const menuPos = ref({ top: 0, left: 0 })
 
 const shells = [
   { value: '/bin/bash', label: 'Bash' },
@@ -22,6 +24,24 @@ const shells = [
   { value: '/usr/bin/fish', label: 'Fish' },
   { value: '/bin/sh', label: 'SH' }
 ]
+
+function closeShellMenu() {
+  showShellMenu.value = false
+}
+
+function onClickOutside(e) {
+  if (showShellMenu.value) {
+    closeShellMenu()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', onClickOutside, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onClickOutside, true)
+})
 
 function handleClick(tabId) {
   if (editingTabId.value !== null) return
@@ -73,8 +93,18 @@ function handleDragEnd() {
   dragTabId.value = null
 }
 
-function toggleShellMenu() {
-  showShellMenu.value = !showShellMenu.value
+function toggleShellMenu(e) {
+  e.stopPropagation()
+  if (showShellMenu.value) {
+    showShellMenu.value = false
+    return
+  }
+  const btn = newBtnRef.value
+  if (btn) {
+    const rect = btn.getBoundingClientRect()
+    menuPos.value = { top: rect.bottom + 4, left: rect.left }
+  }
+  showShellMenu.value = true
 }
 
 function selectShell(shell) {
@@ -83,8 +113,8 @@ function selectShell(shell) {
 }
 
 function getShellIcon(shell) {
-  if (!shell) return '>'
-  const s = shell.toLowerCase()
+    if (!shell) return '>'
+    const s = shell.toLowerCase()
   if (s.includes('zsh')) return '%'
   if (s.includes('fish')) return '>'
   if (s.includes('bash')) return '$'
@@ -129,25 +159,28 @@ function getShellIcon(shell) {
         </button>
       </div>
 
-      <div class="tab-new-wrapper" @click.stop>
-        <button class="tab-new" @click="toggleShellMenu" :title="t('tabs.newTerminal')">
+      <div class="tab-new-wrapper">
+        <button ref="newBtnRef" class="tab-new" @click="toggleShellMenu" :title="t('tabs.newTerminal')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
         </button>
-        <div v-if="showShellMenu" class="shell-dropdown">
-          <button
-            v-for="shell in shells"
-            :key="shell.value"
-            class="shell-dropdown-item"
-            @click="selectShell(shell.value)"
-          >
-            {{ shell.label }}
-          </button>
-        </div>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div v-if="showShellMenu" class="shell-dropdown" :style="{ top: menuPos.top + 'px', left: menuPos.left + 'px' }" @click.stop>
+        <button
+          v-for="shell in shells"
+          :key="shell.value"
+          class="shell-dropdown-item"
+          @click="selectShell(shell.value)"
+        >
+          {{ shell.label }}
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -283,16 +316,17 @@ function getShellIcon(shell) {
   color: var(--text);
 }
 
+</style>
+
+<style>
 .shell-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
+  position: fixed;
   min-width: 120px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 4px;
-  z-index: 200;
+  z-index: 9999;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
@@ -306,7 +340,7 @@ function getShellIcon(shell) {
   color: var(--text);
   font-size: 12px;
   text-align: left;
-  transition: background var(--transition);
+  transition: background 0.15s;
 }
 
 .shell-dropdown-item:hover {
