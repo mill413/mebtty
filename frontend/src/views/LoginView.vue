@@ -1,8 +1,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -19,7 +21,7 @@ function toggleMode() {
 
 async function handleSubmit() {
   if (!username.value || !password.value) {
-    error.value = 'Please enter both username and password'
+    error.value = t('login.enterBoth')
     return
   }
 
@@ -34,7 +36,7 @@ async function handleSubmit() {
     }
     router.push('/')
   } catch (err) {
-    error.value = err.response?.data?.detail || err.message || 'Authentication failed'
+    error.value = err.response?.data?.detail || err.message || t('login.authFailed')
   } finally {
     loading.value = false
   }
@@ -52,29 +54,29 @@ async function handleSubmit() {
           </svg>
         </div>
         <h1>WebTTY</h1>
-        <p class="subtitle">{{ isLogin ? 'Sign in to your account' : 'Create a new account' }}</p>
+        <p class="subtitle">{{ isLogin ? t('login.signIn') : t('login.signUp') }}</p>
       </div>
 
       <form @submit.prevent="handleSubmit" class="login-form">
         <div class="form-group">
-          <label for="username">Username</label>
+          <label for="username">{{ t('login.username') }}</label>
           <input
             id="username"
             v-model="username"
             type="text"
-            placeholder="Enter username"
+            :placeholder="t('login.usernamePlaceholder')"
             autocomplete="username"
             autofocus
           />
         </div>
 
         <div class="form-group">
-          <label for="password">Password</label>
+          <label for="password">{{ t('login.password') }}</label>
           <input
             id="password"
             v-model="password"
             type="password"
-            placeholder="Enter password"
+            :placeholder="t('login.passwordPlaceholder')"
             autocomplete="current-password"
             @keyup.enter="handleSubmit"
           />
@@ -91,16 +93,16 @@ async function handleSubmit() {
 
         <button type="submit" class="btn-primary" :disabled="loading">
           <span v-if="loading" class="spinner"></span>
-          {{ loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account') }}
+          {{ loading ? t('login.pleaseWait') : (isLogin ? t('login.signInBtn') : t('login.signUpBtn')) }}
         </button>
       </form>
 
       <div class="login-footer">
         <span class="text-subtext">
-          {{ isLogin ? "Don't have an account?" : 'Already have an account?' }}
+          {{ isLogin ? t('login.noAccount') : t('login.hasAccount') }}
         </span>
         <button class="btn-link" @click="toggleMode">
-          {{ isLogin ? 'Register' : 'Sign In' }}
+          {{ isLogin ? t('login.register') : t('login.signInBtn') }}
         </button>
       </div>
     </div>

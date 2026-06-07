@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
   tabs: { type: Array, required: true },
@@ -7,6 +8,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['switch', 'close', 'rename', 'new-tab'])
+
+const { t } = useI18n()
 
 const editingTabId = ref(null)
 const editingTitle = ref('')
@@ -111,7 +114,7 @@ function getShellIcon(shell) {
       </div>
     </div>
 
-    <button class="tab-new" @click="$emit('new-tab', '/bin/bash')" title="New Terminal">
+    <button class="tab-new" @click="$emit('new-tab', '/bin/bash')" :title="t('tabs.newTerminal')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="12" y1="5" x2="12" y2="19" />
         <line x1="5" y1="12" x2="19" y2="12" />

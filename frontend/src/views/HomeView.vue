@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useTerminalStore } from '../stores/terminal'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const terminalStore = useTerminalStore()
@@ -96,7 +98,7 @@ function formatDate(dateStr) {
       </div>
       <div class="top-bar-right">
         <span class="username">{{ authStore.username }}</span>
-        <button class="btn-icon" @click="logout" title="Logout">
+        <button class="btn-icon" @click="logout" :title="t('home.logout')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
             <polyline points="16 17 21 12 16 7" />
@@ -108,22 +110,22 @@ function formatDate(dateStr) {
 
     <main class="home-content">
       <section class="welcome-section fade-in">
-        <h1>Welcome back, <span class="accent">{{ authStore.username }}</span></h1>
-        <p class="text-subtext">Manage your terminal sessions from one place.</p>
+        <h1>{{ t('home.welcome') }} <span class="accent">{{ authStore.username }}</span></h1>
+        <p class="text-subtext">{{ t('home.subtitle') }}</p>
       </section>
 
       <section class="stats-row">
         <div class="stat-card">
           <div class="stat-value">{{ terminalStore.sessions.length }}</div>
-          <div class="stat-label text-subtext">Total Sessions</div>
+          <div class="stat-label text-subtext">{{ t('home.totalSessions') }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-value text-success">{{ runningSessions.length }}</div>
-          <div class="stat-label text-subtext">Running</div>
+          <div class="stat-label text-subtext">{{ t('home.running') }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ terminalStore.tabs.length }}</div>
-          <div class="stat-label text-subtext">Open Tabs</div>
+          <div class="stat-label text-subtext">{{ t('home.openTabs') }}</div>
         </div>
       </section>
 
@@ -133,7 +135,7 @@ function formatDate(dateStr) {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          New Terminal
+          {{ t('home.newTerminal') }}
         </button>
 
         <button v-if="terminalStore.tabs.length > 0" class="btn-open-terminal" @click="openTerminal">
@@ -141,12 +143,12 @@ function formatDate(dateStr) {
             <polyline points="4 17 10 11 4 5" />
             <line x1="12" y1="19" x2="20" y2="19" />
           </svg>
-          Open Terminal ({{ terminalStore.tabs.length }})
+          {{ t('home.openTerminal') }} ({{ terminalStore.tabs.length }})
         </button>
       </section>
 
       <section v-if="runningSessions.length > 0" class="sessions-section">
-        <h2>Running Sessions</h2>
+        <h2>{{ t('home.runningSessions') }}</h2>
         <div class="session-list">
           <div
             v-for="session in runningSessions"
@@ -164,14 +166,14 @@ function formatDate(dateStr) {
               </div>
             </div>
             <div class="session-action">
-              <span class="badge-running">Running</span>
+              <span class="badge-running">{{ t('home.running') }}</span>
             </div>
           </div>
         </div>
       </section>
 
       <section v-if="recentSessions.length > 0" class="sessions-section">
-        <h2>Recent Sessions</h2>
+        <h2>{{ t('home.recentSessions') }}</h2>
         <div class="session-list">
           <div
             v-for="session in recentSessions"
@@ -200,10 +202,10 @@ function formatDate(dateStr) {
     <Teleport to="body">
       <div v-if="showShellDialog" class="dialog-overlay" @click.self="showShellDialog = false">
         <div class="dialog-card slide-up">
-          <h3>New Terminal Session</h3>
+          <h3>{{ t('home.newSession') }}</h3>
 
           <div class="form-group">
-            <label>Shell</label>
+            <label>{{ t('home.shell') }}</label>
             <div class="shell-grid">
               <button
                 v-for="shell in shells"
@@ -219,19 +221,19 @@ function formatDate(dateStr) {
           </div>
 
           <div class="form-group">
-            <label>Title (optional)</label>
-            <input v-model="sessionTitle" type="text" placeholder="My terminal" />
+            <label>{{ t('home.titleOptional') }}</label>
+            <input v-model="sessionTitle" type="text" :placeholder="t('home.titlePlaceholder')" />
           </div>
 
           <div class="form-group">
-            <label>Working directory (optional)</label>
-            <input v-model="sessionCwd" type="text" placeholder="/home/user" />
+            <label>{{ t('home.cwdOptional') }}</label>
+            <input v-model="sessionCwd" type="text" :placeholder="t('home.cwdPlaceholder')" />
           </div>
 
           <div class="dialog-actions">
-            <button class="btn-secondary" @click="showShellDialog = false">Cancel</button>
+            <button class="btn-secondary" @click="showShellDialog = false">{{ t('home.cancel') }}</button>
             <button class="btn-primary" @click="createNewSession" :disabled="creating">
-              {{ creating ? 'Creating...' : 'Create' }}
+              {{ creating ? t('home.creating') : t('home.create') }}
             </button>
           </div>
         </div>

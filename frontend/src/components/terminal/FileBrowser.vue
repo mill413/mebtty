@@ -2,6 +2,9 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { getCatppuccinFileIcon, getCatppuccinFolderIcon } from 'vscode-icon-resolver'
 import api from '../../services/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const emit = defineEmits(['close'])
 
@@ -160,7 +163,7 @@ function getFlatList() {
       if (item.is_dir && loadingPaths.has(item.path) && !expandedPaths.has(item.path)) {
         // show loading under a non-yet-expanded dir
       } else if (item.is_dir && loadingPaths.has(item.path) && expandedPaths.has(item.path) && !childrenMap[item.path]) {
-        result.push({ name: 'Loading...', depth: depth + 1, is_loading: true, is_dir: false, path: item.path + '/__loading' })
+        result.push({ name: t('fileBrowser.loading'), depth: depth + 1, is_loading: true, is_dir: false, path: item.path + '/__loading' })
       }
     }
   }
@@ -239,7 +242,7 @@ async function createFolder() {
     showNewFolderDialog.value = false
     await refreshAfter(newFolderParent.value)
   } catch (err) {
-    alert(err.response?.data?.detail || 'Failed to create folder')
+    alert(err.response?.data?.detail || t('fileBrowser.failedCreateFolder'))
   }
 }
 
@@ -269,7 +272,7 @@ async function rename() {
     showRenameDialog.value = false
     await refreshParent(renameItem.value)
   } catch (err) {
-    alert(err.response?.data?.detail || 'Failed to rename')
+    alert(err.response?.data?.detail || t('fileBrowser.failedRename'))
   }
 }
 
@@ -288,7 +291,7 @@ async function confirmDelete() {
     expandedPaths.delete(deleteItem.value.path)
     await refreshParent(deleteItem.value)
   } catch (err) {
-    alert(err.response?.data?.detail || 'Failed to delete')
+    alert(err.response?.data?.detail || t('fileBrowser.failedDelete'))
   }
 }
 
@@ -348,30 +351,30 @@ function getIndentStyle(depth) {
 
     <div class="fb-header">
       <div class="fb-title">
-        <span>EXPLORER</span>
+        <span>{{ t('fileBrowser.explorer') }}</span>
       </div>
       <div class="fb-actions">
-        <button class="fb-btn-icon" @click="handleUpload" title="Upload to selected directory">
+        <button class="fb-btn-icon" @click="handleUpload" :title="t('fileBrowser.upload')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
         </button>
-        <button class="fb-btn-icon" @click="handleNewFolder" title="New folder in selected directory">
+        <button class="fb-btn-icon" @click="handleNewFolder" :title="t('fileBrowser.newFolder')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
             <line x1="12" y1="11" x2="12" y2="17"/>
             <line x1="9" y1="14" x2="15" y2="14"/>
           </svg>
         </button>
-        <button class="fb-btn-icon" @click="loadDirectory(currentPath)" title="Refresh">
+        <button class="fb-btn-icon" @click="loadDirectory(currentPath)" :title="t('fileBrowser.refresh')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10"/>
             <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
           </svg>
         </button>
-        <button class="fb-btn-icon" @click="$emit('close')" title="Close">
+        <button class="fb-btn-icon" @click="$emit('close')" :title="t('fileBrowser.close')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
@@ -441,12 +444,12 @@ function getIndentStyle(depth) {
           :style="getIndentStyle(item.depth)"
         >
           <span class="fb-chevron-spacer"></span>
-          <span class="fb-loading-dots">Loading...</span>
+          <span class="fb-loading-dots">{{ t('fileBrowser.loading') }}</span>
         </div>
       </template>
 
       <div v-if="tree.length === 0 && !loadingPaths.has(currentPath)" class="fb-empty">
-        Empty directory
+        {{ t('fileBrowser.emptyDir') }}
       </div>
     </div>
 
@@ -463,7 +466,7 @@ function getIndentStyle(depth) {
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          Download
+          {{ t('fileBrowser.download') }}
         </button>
         <button v-if="contextMenu.item && contextMenu.item.is_dir" @click="promptRename(contextMenu.item); closeContextMenu()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -471,21 +474,21 @@ function getIndentStyle(depth) {
             <line x1="12" y1="11" x2="12" y2="17"/>
             <line x1="9" y1="14" x2="15" y2="14"/>
           </svg>
-          New Folder Here
+          {{ t('fileBrowser.newFolderHere') }}
         </button>
         <button @click="promptRename(contextMenu.item); closeContextMenu()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
-          Rename
+          {{ t('fileBrowser.rename') }}
         </button>
         <button class="danger" @click="promptDelete(contextMenu.item); closeContextMenu()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
           </svg>
-          Delete
+          {{ t('fileBrowser.delete') }}
         </button>
       </div>
     </Teleport>
@@ -494,17 +497,17 @@ function getIndentStyle(depth) {
     <Teleport to="body">
       <div v-if="showNewFolderDialog" class="fb-dialog-overlay" @click.self="showNewFolderDialog = false">
         <div class="fb-dialog">
-          <h3>New Folder</h3>
+          <h3>{{ t('fileBrowser.newFolderTitle') }}</h3>
           <input
             v-model="newFolderName"
             type="text"
-            placeholder="Folder name"
+            :placeholder="t('fileBrowser.folderNamePlaceholder')"
             @keyup.enter="createFolder"
             autofocus
           />
           <div class="fb-dialog-actions">
-            <button class="fb-btn-cancel" @click="showNewFolderDialog = false">Cancel</button>
-            <button class="fb-btn-confirm" @click="createFolder">Create</button>
+            <button class="fb-btn-cancel" @click="showNewFolderDialog = false">{{ t('fileBrowser.cancel') }}</button>
+            <button class="fb-btn-confirm" @click="createFolder">{{ t('fileBrowser.create') }}</button>
           </div>
         </div>
       </div>
@@ -514,7 +517,7 @@ function getIndentStyle(depth) {
     <Teleport to="body">
       <div v-if="showRenameDialog" class="fb-dialog-overlay" @click.self="showRenameDialog = false">
         <div class="fb-dialog">
-          <h3>Rename</h3>
+          <h3>{{ t('fileBrowser.renameTitle') }}</h3>
           <input
             v-model="renameNewName"
             type="text"
@@ -522,8 +525,8 @@ function getIndentStyle(depth) {
             autofocus
           />
           <div class="fb-dialog-actions">
-            <button class="fb-btn-cancel" @click="showRenameDialog = false">Cancel</button>
-            <button class="fb-btn-confirm" @click="rename">Rename</button>
+            <button class="fb-btn-cancel" @click="showRenameDialog = false">{{ t('fileBrowser.cancel') }}</button>
+            <button class="fb-btn-confirm" @click="rename">{{ t('fileBrowser.rename') }}</button>
           </div>
         </div>
       </div>
@@ -533,11 +536,11 @@ function getIndentStyle(depth) {
     <Teleport to="body">
       <div v-if="showDeleteConfirm" class="fb-dialog-overlay" @click.self="showDeleteConfirm = false">
         <div class="fb-dialog">
-          <h3>Delete {{ deleteItem?.is_dir ? 'Folder' : 'File' }}</h3>
-          <p>Are you sure you want to delete <strong>{{ deleteItem?.name }}</strong>?</p>
+          <h3>{{ deleteItem?.is_dir ? t('fileBrowser.deleteFolder') : t('fileBrowser.deleteFile') }}</h3>
+          <p>{{ t('fileBrowser.deleteConfirm', { name: deleteItem?.name }) }}</p>
           <div class="fb-dialog-actions">
-            <button class="fb-btn-cancel" @click="showDeleteConfirm = false">Cancel</button>
-            <button class="fb-btn-danger" @click="confirmDelete">Delete</button>
+            <button class="fb-btn-cancel" @click="showDeleteConfirm = false">{{ t('fileBrowser.cancel') }}</button>
+            <button class="fb-btn-danger" @click="confirmDelete">{{ t('fileBrowser.delete') }}</button>
           </div>
         </div>
       </div>

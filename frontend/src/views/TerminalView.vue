@@ -8,7 +8,9 @@ import TerminalPane from '../components/terminal/TerminalPane.vue'
 import TerminalToolbar from '../components/layout/TerminalToolbar.vue'
 import StatusBar from '../components/layout/StatusBar.vue'
 import FileBrowser from '../components/terminal/FileBrowser.vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const terminalStore = useTerminalStore()
@@ -130,7 +132,7 @@ function logout() {
   <div class="terminal-page">
     <div class="terminal-header">
       <div class="header-left">
-        <button class="btn-home" @click="goHome" title="Home">
+        <button class="btn-home" @click="goHome" :title="t('terminal.home')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="4 17 10 11 4 5" />
             <line x1="12" y1="19" x2="20" y2="19" />
@@ -140,7 +142,7 @@ function logout() {
       </div>
       <div class="header-right">
         <span class="text-subtext user-label">{{ authStore.username }}</span>
-        <button class="btn-icon-sm" @click="logout" title="Logout">
+        <button class="btn-icon-sm" @click="logout" :title="t('terminal.logout')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
             <polyline points="16 17 21 12 16 7" />
@@ -183,14 +185,14 @@ function logout() {
               <polyline points="4 17 10 11 4 5" />
               <line x1="12" y1="19" x2="20" y2="19" />
             </svg>
-            <h3>No Active Terminal</h3>
-            <p class="text-subtext">Create a new terminal session to get started</p>
+            <h3>{{ t('terminal.noActive') }}</h3>
+            <p class="text-subtext">{{ t('terminal.noActiveDesc') }}</p>
             <button class="btn-create" @click="handleNewTerminal('/bin/bash')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              New Terminal
+              {{ t('terminal.newTerminal') }}
             </button>
           </div>
         </div>
