@@ -7,6 +7,7 @@ import TerminalTabs from '../components/terminal/TerminalTabs.vue'
 import TerminalPane from '../components/terminal/TerminalPane.vue'
 import TerminalToolbar from '../components/layout/TerminalToolbar.vue'
 import StatusBar from '../components/layout/StatusBar.vue'
+import FileBrowser from '../components/terminal/FileBrowser.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,7 @@ const terminalPaneRef = ref(null)
 const terminalDims = ref({ cols: 80, rows: 24 })
 const connectionStatus = ref('disconnected')
 const showSearch = ref(false)
+const showFileBrowser = ref(false)
 
 onMounted(async () => {
   if (!authStore.user) {
@@ -82,6 +84,14 @@ function toggleSearch() {
   } else {
     terminalPaneRef.value?.closeSearch()
   }
+}
+
+function toggleFileBrowser() {
+  showFileBrowser.value = !showFileBrowser.value
+}
+
+function closeFileBrowser() {
+  showFileBrowser.value = false
 }
 
 function handleUpload() {
@@ -152,35 +162,44 @@ function logout() {
     <TerminalToolbar
       @new-terminal="handleNewTerminal"
       @toggle-search="toggleSearch"
+      @toggle-file-browser="toggleFileBrowser"
+      :showFileBrowser="showFileBrowser"
       @upload="handleUpload"
     />
 
-    <div class="terminal-body">
-      <TerminalPane
-        v-if="terminalStore.activeTab"
-        ref="terminalPaneRef"
-        :sessionId="terminalStore.activeTab.sessionId"
-        :key="terminalStore.activeTab.sessionId"
-        @resize="handleResize"
-        @connection-change="handleConnectionChange"
-      />
-      <div v-else class="empty-terminal">
-        <div class="empty-content">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
-            <polyline points="4 17 10 11 4 5" />
-            <line x1="12" y1="19" x2="20" y2="19" />
-          </svg>
-          <h3>No Active Terminal</h3>
-          <p class="text-subtext">Create a new terminal session to get started</p>
-          <button class="btn-create" @click="handleNewTerminal('/bin/bash')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
+    <div class="terminal-main">
+      <div class="terminal-body">
+        <TerminalPane
+          v-if="terminalStore.activeTab"
+          ref="terminalPaneRef"
+          :sessionId="terminalStore.activeTab.sessionId"
+          :key="terminalStore.activeTab.sessionId"
+          @resize="handleResize"
+          @connection-change="handleConnectionChange"
+        />
+        <div v-else class="empty-terminal">
+          <div class="empty-content">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
+              <polyline points="4 17 10 11 4 5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
             </svg>
-            New Terminal
-          </button>
+            <h3>No Active Terminal</h3>
+            <p class="text-subtext">Create a new terminal session to get started</p>
+            <button class="btn-create" @click="handleNewTerminal('/bin/bash')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New Terminal
+            </button>
+          </div>
         </div>
       </div>
+
+      <FileBrowser
+        v-if="showFileBrowser"
+        @close="closeFileBrowser"
+      />
     </div>
 
     <StatusBar
@@ -274,6 +293,12 @@ function logout() {
   flex: 1;
   overflow: hidden;
   position: relative;
+}
+
+.terminal-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
 }
 
 .empty-terminal {

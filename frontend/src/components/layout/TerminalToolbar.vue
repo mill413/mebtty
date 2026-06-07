@@ -1,7 +1,14 @@
 <script setup>
 import { ref } from 'vue'
 
-const emit = defineEmits(['new-terminal', 'toggle-search', 'upload'])
+const emit = defineEmits(['new-terminal', 'toggle-search', 'toggle-file-browser', 'upload'])
+
+const props = defineProps({
+  showFileBrowser: {
+    type: Boolean,
+    default: false
+  }
+})
 
 const showShellMenu = ref(false)
 const shells = [
@@ -53,6 +60,17 @@ function toggleShellMenu() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </button>
+
+      <button
+        class="toolbar-btn"
+        :class="{ active: showFileBrowser }"
+        @click="$emit('toggle-file-browser')"
+        title="File Browser"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
         </svg>
       </button>
 
@@ -120,6 +138,11 @@ function toggleShellMenu() {
 .toolbar-btn:hover:not(:disabled) {
   background: var(--surface);
   color: var(--text);
+}
+
+.toolbar-btn.active {
+  background: var(--surface);
+  color: var(--accent);
 }
 
 .toolbar-btn:disabled {
