@@ -121,7 +121,7 @@ function formatDate(dateStr) {
   <div class="home-page">
     <header class="top-bar">
       <div class="top-bar-left">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="4 17 10 11 4 5" />
           <line x1="12" y1="19" x2="20" y2="19" />
         </svg>
@@ -130,7 +130,7 @@ function formatDate(dateStr) {
       <div class="top-bar-right">
         <ThemeToggle />
         <button class="btn-icon" @click="openFileBrowser" :title="t('toolbar.fileBrowser')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
           </svg>
         </button>
@@ -320,8 +320,8 @@ function formatDate(dateStr) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  height: 52px;
+  padding: 0 12px;
+  height: 36px;
   background: var(--bg-deep);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -330,19 +330,21 @@ function formatDate(dateStr) {
 .top-bar-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  padding: 0 10px;
   color: var(--text);
 }
 
 .brand {
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--subtext);
 }
 
 .top-bar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .username {
@@ -354,13 +356,14 @@ function formatDate(dateStr) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   background: transparent;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 4px;
   color: var(--subtext);
   transition: all var(--transition);
+  cursor: pointer;
 }
 
 .btn-icon:hover {
