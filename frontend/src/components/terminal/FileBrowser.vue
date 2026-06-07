@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { getCatppuccinFileIcon, getCatppuccinFolderIcon } from 'vscode-icon-resolver'
 import api from '../../services/api'
 
 const emit = defineEmits(['close'])
@@ -314,22 +315,22 @@ async function refreshParent(item) {
   return refreshAfter(parentPath)
 }
 
-// --- Icon helpers ---
-function getFileIconClass(item) {
+// --- Icon helpers (Catppuccin VSCode Icons) ---
+function getFileIconSrc(item) {
   if (item.is_dir) {
-    return expandedPaths.has(item.path) ? 'folder-open' : 'folder'
+    const isOpen = expandedPaths.has(item.path)
+    const iconName = getCatppuccinFolderIcon(item.name)
+    if (iconName.startsWith('_')) {
+      return `/catppuccin-icons/${isOpen ? iconName + '_open' : iconName}.svg`
+    }
+    return `/catppuccin-icons/folder_${iconName}${isOpen ? '_open' : ''}.svg`
   }
-  const ext = item.name.split('.').pop().toLowerCase()
-  const codeExts = ['js', 'ts', 'vue', 'py', 'java', 'go', 'rs', 'rb', 'c', 'cpp', 'h', 'html', 'css', 'scss', 'json', 'xml', 'yaml', 'yml', 'toml', 'sql', 'sh', 'bash', 'zsh', 'fish', 'lua', 'php', 'swift', 'kt']
-  if (codeExts.includes(ext)) return 'code'
-  const docExts = ['md', 'txt', 'log', 'rst', 'doc', 'docx']
-  if (docExts.includes(ext)) return 'doc'
-  const imgExts = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'ico', 'bmp']
-  if (imgExts.includes(ext)) return 'image'
-  const archiveExts = ['zip', 'tar', 'gz', 'bz2', 'xz', '7z', 'rar', 'zst']
-  if (archiveExts.includes(ext)) return 'archive'
-  if (ext === 'pdf') return 'pdf'
-  return 'file'
+  const iconName = getCatppuccinFileIcon(item.name)
+  return `/catppuccin-icons/${iconName}.svg`
+}
+
+function onIconError(e) {
+  e.target.src = '/catppuccin-icons/_file.svg'
 }
 
 function getIndentStyle(depth) {
@@ -418,18 +419,16 @@ function getIndentStyle(depth) {
           </span>
           <span v-else class="fb-chevron-spacer"></span>
 
-          <!-- Icon -->
-          <span class="fb-icon" :class="'icon-' + getFileIconClass(item)">
-            <svg v-if="getFileIconClass(item) === 'folder-open'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
-            </svg>
-            <svg v-else-if="getFileIconClass(item) === 'folder'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-            </svg>
-            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
+          <!-- Icon (Catppuccin) -->
+          <span class="fb-icon">
+            <img
+              :src="getFileIconSrc(item)"
+              :alt="item.name"
+              width="18"
+              height="18"
+              @error="onIconError"
+              draggable="false"
+            />
           </span>
 
           <span class="fb-name">{{ item.name }}</span>
@@ -725,13 +724,7 @@ function getIndentStyle(depth) {
   flex-shrink: 0;
 }
 
-.icon-folder, .icon-folder-open { color: #dcb67a; }
-.icon-code { color: #89b4fa; }
-.icon-doc { color: #a6e3a1; }
-.icon-image { color: #f5c2e7; }
-.icon-archive { color: #f9e2af; }
-.icon-pdf { color: #f38ba8; }
-.icon-file { color: var(--subtext); }
+/* Catppuccin icons have built-in colors, no overrides needed */
 
 .fb-name {
   color: var(--text);
