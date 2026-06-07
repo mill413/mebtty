@@ -139,6 +139,7 @@ export default {
     statusItemStatus: 'プロセス状態',
     statusPositionLeft: '左側',
     statusPositionRight: '右側',
+    dragToReorder: 'ドラッグして並べ替え',
     sessionTimeout: 'セッション自動削除',
     sessionTimeoutDesc: '停止したセッションを指定時間後に自動削除',
     timeoutDisabled: '無効',

@@ -139,6 +139,7 @@ export default {
     statusItemStatus: 'Process Status',
     statusPositionLeft: 'Left',
     statusPositionRight: 'Right',
+    dragToReorder: 'Drag to reorder',
     sessionTimeout: 'Session Auto-Delete',
     sessionTimeoutDesc: 'Automatically delete stopped sessions after a period of time',
     timeoutDisabled: 'Disabled',

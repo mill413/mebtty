@@ -42,6 +42,39 @@ const confirmPassword = ref('')
 const passwordError = ref('')
 const passwordSuccess = ref(false)
 
+// Drag and drop for status bar items
+const dragIndex = ref(null)
+const dragOverIndex = ref(null)
+
+function onDragStart(index, event) {
+  dragIndex.value = index
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', index.toString())
+}
+
+function onDragOver(index, event) {
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+  dragOverIndex.value = index
+}
+
+function onDragLeave() {
+  dragOverIndex.value = null
+}
+
+function onDrop(index, event) {
+  event.preventDefault()
+  if (dragIndex.value !== null && dragIndex.value !== index) {
+    settingsStore.reorderStatusBarItems(dragIndex.value, index)
+  }
+  dragOverIndex.value = null
+}
+
+function onDragEnd() {
+  dragIndex.value = null
+  dragOverIndex.value = null
+}
+
 onMounted(async () => {
   if (!authStore.user) await authStore.fetchUser()
   if (!settingsStore.loaded) await settingsStore.fetchSettings()
@@ -313,7 +346,28 @@ function logout() {
         </div>
         <div class="setting-control-full">
           <div class="statusbar-items-list">
-            <div v-for="item in settingsStore.statusBarItems" :key="item.key" class="statusbar-item-row">
+            <div
+              v-for="(item, index) in settingsStore.statusBarItems"
+              :key="item.key"
+              class="statusbar-item-row"
+              :class="{ 'dragging': dragIndex === index, 'drag-over': dragOverIndex === index }"
+              draggable="true"
+              @dragstart="onDragStart(index, $event)"
+              @dragover="onDragOver(index, $event)"
+              @dragleave="onDragLeave"
+              @drop="onDrop(index, $event)"
+              @dragend="onDragEnd"
+            >
+              <div class="drag-handle" :title="t('settings.dragToReorder')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="9" cy="5" r="1.5"/>
+                  <circle cx="15" cy="5" r="1.5"/>
+                  <circle cx="9" cy="12" r="1.5"/>
+                  <circle cx="15" cy="12" r="1.5"/>
+                  <circle cx="9" cy="19" r="1.5"/>
+                  <circle cx="15" cy="19" r="1.5"/>
+                </svg>
+              </div>
               <label class="checkbox-label">
                 <input type="checkbox" :checked="item.visible" @change="settingsStore.toggleStatusBarItemVisible(item.key, $event.target.checked)" />
                 <span>{{ t('settings.statusItem' + item.key.charAt(0).toUpperCase() + item.key.slice(1)) }}</span>
@@ -996,11 +1050,42 @@ function logout() {
 .statusbar-item-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   padding: 8px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: grab;
+}
+
+.statusbar-item-row:active {
+  cursor: grabbing;
+}
+
+.statusbar-item-row.dragging {
+  opacity: 0.5;
+  background: var(--surface-hover);
+}
+
+.statusbar-item-row.drag-over {
+  border-color: var(--accent);
+  border-style: dashed;
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 20px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.statusbar-item-row:hover .drag-handle {
+  opacity: 1;
 }
 
 .position-select {
@@ -1011,6 +1096,7 @@ function logout() {
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
+  margin-left: auto;
 }
 
 .position-select:disabled {
