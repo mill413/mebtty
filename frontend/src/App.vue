@@ -1,8 +1,22 @@
 <script setup>
-import { useThemeStore } from './stores/theme'
+import { onMounted, onUnmounted } from 'vue'
+import { useThemeStore, mediaQuery } from './stores/theme'
 
 const themeStore = useThemeStore()
 themeStore.apply()
+
+let handler = null
+
+onMounted(() => {
+  handler = () => themeStore.onSystemThemeChange()
+  mediaQuery.addEventListener('change', handler)
+})
+
+onUnmounted(() => {
+  if (handler) {
+    mediaQuery.removeEventListener('change', handler)
+  }
+})
 </script>
 
 <template>

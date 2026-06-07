@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useTerminalStore } from '../stores/terminal'
+import ThemeToggle from '../components/common/ThemeToggle.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -97,6 +98,7 @@ function formatDate(dateStr) {
         <span class="brand">WebTTY</span>
       </div>
       <div class="top-bar-right">
+        <ThemeToggle />
         <span class="username">{{ authStore.username }}</span>
         <button class="btn-icon" @click="logout" :title="t('home.logout')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

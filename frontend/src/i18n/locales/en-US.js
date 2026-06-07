@@ -51,6 +51,7 @@ export default {
     uploadFile: 'Upload File',
     switchToLight: 'Switch to Light Mode',
     switchToDark: 'Switch to Dark Mode',
+    themeSystem: 'Follow System Theme',
     settings: 'Settings'
   },
   statusBar: {

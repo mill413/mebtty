@@ -77,7 +77,7 @@ const terminalThemes = {
   }
 }
 
-watch(() => themeStore.theme, (newTheme) => {
+watch(() => themeStore.resolved, (newTheme) => {
   if (terminal) {
     terminal.options.theme = terminalThemes[newTheme]
   }
@@ -101,7 +101,7 @@ function initTerminal() {
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
     lineHeight: 1.3,
     allowProposedApi: true,
-    theme: terminalThemes[themeStore.theme]
+    theme: terminalThemes[themeStore.resolved]
   })
 
   fitAddon = new FitAddon()

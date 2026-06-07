@@ -51,6 +51,7 @@ export default {
     uploadFile: '上傳檔案',
     switchToLight: '切換到亮色模式',
     switchToDark: '切換到暗色模式',
+    themeSystem: '跟隨系統主題',
     settings: '設定'
   },
   statusBar: {

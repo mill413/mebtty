@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
+import ThemeToggle from '../components/common/ThemeToggle.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -45,6 +46,9 @@ async function handleSubmit() {
 
 <template>
   <div class="login-page">
+    <div class="login-theme-toggle">
+      <ThemeToggle />
+    </div>
     <div class="login-card slide-up">
       <div class="login-header">
         <div class="logo">
@@ -117,6 +121,13 @@ async function handleSubmit() {
   justify-content: center;
   background: var(--bg);
   background-image: radial-gradient(ellipse at 50% 0%, rgba(124, 58, 237, 0.08) 0%, transparent 60%);
+  position: relative;
+}
+
+.login-theme-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
 }
 
 .login-card {

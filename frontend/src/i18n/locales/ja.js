@@ -51,6 +51,7 @@ export default {
     uploadFile: 'ファイルアップロード',
     switchToLight: 'ライトモードに切り替え',
     switchToDark: 'ダークモードに切り替え',
+    themeSystem: 'システムテーマに従う',
     settings: '設定'
   },
   statusBar: {

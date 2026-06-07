@@ -9,6 +9,7 @@ import TerminalToolbar from '../components/layout/TerminalToolbar.vue'
 import StatusBar from '../components/layout/StatusBar.vue'
 import FileBrowser from '../components/terminal/FileBrowser.vue'
 import { useI18n } from 'vue-i18n'
+import ThemeToggle from '../components/common/ThemeToggle.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -141,6 +142,7 @@ function logout() {
         <span class="header-brand">WebTTY</span>
       </div>
       <div class="header-right">
+        <ThemeToggle />
         <span class="text-subtext user-label">{{ authStore.username }}</span>
         <button class="btn-icon-sm" @click="logout" :title="t('terminal.logout')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
