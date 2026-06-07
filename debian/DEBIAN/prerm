@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -e
+
+# Stop and disable service before removal
+if [ -d /run/systemd/system ]; then
+    systemctl stop webtty.service 2>/dev/null || true
+    systemctl disable webtty.service 2>/dev/null || true
+fi

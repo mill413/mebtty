@@ -1,0 +1,134 @@
+name: Build Debian Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on main branch
+        run: |
+          git fetch origin main
+          TAG_COMMIT="${GITHUB_SHA}"
+          MAIN_HEAD="$(git rev-parse origin/main)"
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" "$MAIN_HEAD"; then
+            echo "::error::Tag ${GITHUB_REF_NAME} is not on the main branch. Aborting."
+            exit 1
+          fi
+          echo "Tag ${GITHUB_REF_NAME} is on main branch, proceeding."
+
+      - name: Set version
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building version: $VERSION"
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Install Python dependencies
+        run: |
+          cd backend
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable with PyInstaller
+        run: |
+          cd backend
+          source venv/bin/activate
+          pyinstaller --clean --noconfirm webtty.spec
+          chmod +x dist/webtty
+
+      - name: Assemble deb package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_DIR="webtty_${VERSION}_amd64"
+
+          # Create package directory structure
+          mkdir -p "$PKG_DIR/DEBIAN"
+          mkdir -p "$PKG_DIR/usr/local/bin"
+          mkdir -p "$PKG_DIR/lib/systemd/system"
+
+          # Copy executable
+          cp backend/dist/webtty "$PKG_DIR/usr/local/bin/webtty"
+          chmod 755 "$PKG_DIR/usr/local/bin/webtty"
+
+          # Copy systemd service
+          cp webtty.service "$PKG_DIR/lib/systemd/system/webtty.service"
+          chmod 644 "$PKG_DIR/lib/systemd/system/webtty.service"
+
+          # Copy DEBIAN metadata with version substitution
+          sed "s/\${VERSION}/$VERSION/g" debian/DEBIAN/control > "$PKG_DIR/DEBIAN/control"
+          cp debian/DEBIAN/postinst  "$PKG_DIR/DEBIAN/postinst"
+          cp debian/DEBIAN/prerm     "$PKG_DIR/DEBIAN/prerm"
+          cp debian/DEBIAN/postrm    "$PKG_DIR/DEBIAN/postrm"
+          chmod 755 "$PKG_DIR/DEBIAN/postinst" "$PKG_DIR/DEBIAN/prerm" "$PKG_DIR/DEBIAN/postrm"
+
+      - name: Build deb package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_DIR="webtty_${VERSION}_amd64"
+          dpkg-deb --build --root-owner-group "$PKG_DIR"
+          ls -lh "${PKG_DIR}.deb"
+
+      - name: Rename executable
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cp backend/dist/webtty "webtty-${VERSION}-linux-amd64"
+          chmod +x "webtty-${VERSION}-linux-amd64"
+          ls -lh "webtty-${VERSION}-linux-amd64"
+
+      - name: Upload deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: webtty_${{ steps.version.outputs.version }}_amd64
+          path: webtty_${{ steps.version.outputs.version }}_amd64.deb
+          retention-days: 30
+
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: webtty-${{ steps.version.outputs.version }}-linux-amd64
+          path: webtty-${{ steps.version.outputs.version }}-linux-amd64
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            webtty_${{ steps.version.outputs.version }}_amd64.deb
+            webtty-${{ steps.version.outputs.version }}-linux-amd64
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}

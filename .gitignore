@@ -44,3 +44,7 @@ Thumbs.db
 .webtty.pid
 backend/data/
 backend/uploads/
+
+# Debian packages
+*.deb
+webtty_*_amd64/

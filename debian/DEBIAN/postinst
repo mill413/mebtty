@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -e
+
+DATA_DIR="/var/lib/webtty"
+ENV_FILE="/etc/webtty/webtty.env"
+
+# Create data directories
+mkdir -p "$DATA_DIR/uploads"
+
+# Generate environment config with random secret key if not exists
+if [ ! -f "$ENV_FILE" ]; then
+    SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))' 2>/dev/null || openssl rand -hex 32)
+    cat > "$ENV_FILE" <<EOF
+# WebTTY environment configuration
+# Modify and restart: systemctl restart webtty
+
+WEBTTY_SECRET_KEY=$SECRET
+WEBTTY_HOST=0.0.0.0
+WEBTTY_PORT=8000
+EOF
+    chmod 600 "$ENV_FILE"
+fi
+
+# Enable and start systemd service
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload
+    systemctl enable webtty.service
+    systemctl start webtty.service
+fi
+
+echo ""
+echo "  WebTTY installed successfully!"
+echo ""
+echo "  Config:     $ENV_FILE"
+echo "  Data:       $DATA_DIR"
+echo "  Web UI:     http://localhost:8000"
+echo ""
+echo "  systemctl start webtty"
+echo "  systemctl stop webtty"
+echo "  systemctl status webtty"
+echo "  journalctl -u webtty -f"
+echo ""

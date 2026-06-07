@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -e
+
+if [ "$1" = "purge" ]; then
+    rm -rf /var/lib/webtty
+    rm -rf /etc/webtty
+fi
+
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload
+fi
