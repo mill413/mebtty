@@ -83,6 +83,10 @@ export class TerminalWebSocket {
     this.ws.send(packet)
   }
 
+  sendData(text) {
+    this.sendPacket(0x01, new TextEncoder().encode(text))
+  }
+
   startHeartbeat() {
     this.heartbeatInterval = setInterval(() => {
       this.sendPacket(0x04, new Uint8Array(0))
