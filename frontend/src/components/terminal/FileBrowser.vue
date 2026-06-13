@@ -134,12 +134,13 @@ const breadcrumbSegments = computed(() => {
     // Break the absolute root path into clickable segments
     const rootParts = root.split('/').filter(Boolean)
     if (rootParts.length === 0) return [{ label: root, path: '' }]
-    return rootParts.map(part => ({ label: part, path: '' }))
+    const segments = [{ label: '/', path: '' }].concat(rootParts.map(part => ({ label: part, path: '' })))
+    return segments
   }
   const parts = currentPath.value.split('/').filter(Boolean)
   // Break the absolute root path into clickable segments
   const rootParts = root.split('/').filter(Boolean)
-  const segments = rootParts.map(part => ({ label: part, path: '' }))
+  const segments = [{ label: '/', path: '' }].concat(rootParts.map(part => ({ label: part, path: '' })))
   let accumulated = ''
   for (const part of parts) {
     accumulated = accumulated ? accumulated + '/' + part : part
