@@ -131,10 +131,15 @@ async function autoRefresh() {
 const breadcrumbSegments = computed(() => {
   const root = absoluteRoot.value || '~'
   if (!currentPath.value || currentPath.value === '.') {
-    return [{ label: root, path: '' }]
+    // Break the absolute root path into clickable segments
+    const rootParts = root.split('/').filter(Boolean)
+    if (rootParts.length === 0) return [{ label: root, path: '' }]
+    return rootParts.map(part => ({ label: part, path: '' }))
   }
   const parts = currentPath.value.split('/').filter(Boolean)
-  const segments = [{ label: root, path: '' }]
+  // Break the absolute root path into clickable segments
+  const rootParts = root.split('/').filter(Boolean)
+  const segments = rootParts.map(part => ({ label: part, path: '' }))
   let accumulated = ''
   for (const part of parts) {
     accumulated = accumulated ? accumulated + '/' + part : part
