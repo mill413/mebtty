@@ -451,12 +451,13 @@ function logout() {
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  padding-top: 4px;
 }
 
 .terminal-header {
   display: flex;
   align-items: stretch;
-  height: 36px;
+  height: 32px;
   background: var(--bg-deep);
   flex-shrink: 0;
 }
@@ -497,7 +498,7 @@ function logout() {
 .header-tabs {
   flex: 1;
   min-width: 0;
-  height: 36px;
+  height: 32px;
 }
 
 .header-right {
