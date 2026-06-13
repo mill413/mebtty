@@ -60,6 +60,7 @@ export default {
     new: '新規',
     search: '検索',
     fileBrowser: 'ファイルブラウザ',
+    zenMode: 'Zenモード',
     uploadFile: 'ファイルアップロード',
     switchToLight: 'ライトモードに切り替え',
     switchToDark: 'ダークモードに切り替え',

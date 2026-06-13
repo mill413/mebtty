@@ -60,6 +60,7 @@ export default {
     new: '新建',
     search: '搜尋',
     fileBrowser: '檔案瀏覽器',
+    zenMode: '禪模式',
     uploadFile: '上傳檔案',
     switchToLight: '切換到亮色模式',
     switchToDark: '切換到暗色模式',

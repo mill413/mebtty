@@ -60,6 +60,7 @@ export default {
     new: 'New',
     search: 'Search',
     fileBrowser: 'File Browser',
+    zenMode: 'Zen Mode',
     uploadFile: 'Upload File',
     switchToLight: 'Switch to Light Mode',
     switchToDark: 'Switch to Dark Mode',
