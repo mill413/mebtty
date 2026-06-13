@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import ThemeToggle from '../components/common/ThemeToggle.vue'
+import axios from 'axios'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -15,10 +16,20 @@ const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const registrationEnabled = ref(true)
 
-onMounted(() => {
+onMounted(async () => {
   if (route.query.mode === 'register') {
     isLogin.value = false
+  }
+
+  // Check if registration is enabled
+  try {
+    const res = await axios.get('/api/auth/has-users')
+    // Hide registration only when explicitly disabled AND users already exist (always allow first-time setup)
+    registrationEnabled.value = !(res.data.registration_enabled === false && res.data.has_users === true)
+  } catch {
+    registrationEnabled.value = true
   }
 })
 
@@ -108,7 +119,7 @@ async function handleSubmit() {
         </button>
       </form>
 
-      <div class="login-footer">
+      <div v-if="registrationEnabled" class="login-footer">
         <span class="text-subtext">
           {{ isLogin ? t('login.noAccount') : t('login.hasAccount') }}
         </span>

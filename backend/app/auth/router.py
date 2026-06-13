@@ -37,7 +37,7 @@ def detect_login_shell() -> str:
 async def has_users(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(func.count()).select_from(User))
     count = result.scalar_one()
-    return {"has_users": count > 0}
+    return {"has_users": count > 0, "registration_enabled": app_settings.REGISTRATION_ENABLED}
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -49,6 +49,16 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail="Username already exists",
         )
+
+    # Block registration when disabled, but always allow first-time setup
+    if not app_settings.REGISTRATION_ENABLED:
+        count_result = await db.execute(select(func.count()).select_from(User))
+        user_count = count_result.scalar_one()
+        if user_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registration is disabled",
+            )
 
     user = User(
         username=body.username,

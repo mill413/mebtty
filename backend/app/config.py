@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100MB
     STATIC_DIR: str = ""  # Empty = auto-detect
+    REGISTRATION_ENABLED: bool = True
 
     class Config:
         env_prefix = "MEBTTY_"
