@@ -326,19 +326,25 @@ function closeContextMenu() {
 }
 
 async function copyPath(item) {
-  try {
-    await navigator.clipboard.writeText(item.path)
-  } catch (err) {
-    // Fallback for older browsers
-    const textarea = document.createElement('textarea')
-    textarea.value = item.path
-    textarea.style.position = 'fixed'
-    textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
-    textarea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textarea)
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(item.path)
+      return
+    } catch (err) {
+      // Fall through to legacy method
+    }
   }
+  // Fallback for older browsers or insecure contexts (e.g. via HTTP tunnel)
+  const textarea = document.createElement('textarea')
+  textarea.value = item.path
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  try {
+    document.execCommand('copy')
+  } catch {}
+  document.body.removeChild(textarea)
 }
 
 function promptRename(item) {
