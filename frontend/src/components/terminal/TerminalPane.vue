@@ -113,6 +113,21 @@ function initTerminal() {
 
   terminal.open(terminalEl.value)
 
+  // Handle Ctrl+V / Cmd+V paste (without Shift) since xterm.js only handles Ctrl+Shift+V by default
+  terminal.attachCustomKeyEventHandler((e) => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'v' || e.key === 'V' || e.code === 'KeyV')) {
+      navigator.clipboard.readText().then((text) => {
+        if (text && wsConnection) {
+          wsConnection.sendData(text)
+        }
+      }).catch(() => {
+        // Clipboard read may fail in insecure contexts; silently ignore
+      })
+      return false
+    }
+    return true
+  })
+
   // Copy-on-select: copy selected text to clipboard when user finishes a selection
   copyOnSelectHandler = () => {
     const selection = terminal.getSelection()
