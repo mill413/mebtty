@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, onActivated } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { SearchAddon } from 'xterm-addon-search'
@@ -89,6 +89,24 @@ onMounted(() => {
 
 onUnmounted(() => {
   cleanup()
+})
+
+onActivated(() => {
+  // Re-fit and re-focus the terminal when the tab becomes active again
+  if (terminal) {
+    requestAnimationFrame(() => {
+      try {
+        fitAddon.fit()
+        emit('resize', { cols: terminal.cols, rows: terminal.rows })
+        if (wsConnection) {
+          wsConnection.sendResize(terminal.cols, terminal.rows)
+        }
+      } catch {
+        // Ignore fit errors on reactivation
+      }
+      terminal.focus()
+    })
+  }
 })
 
 function initTerminal() {

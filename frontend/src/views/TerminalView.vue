@@ -297,17 +297,19 @@ function logout() {
           v-if="isSettingsTab"
           :embedded="true"
         />
-        <!-- Terminal pane -->
-        <TerminalPane
-          v-else-if="terminalStore.activeTab"
-          ref="terminalPaneRef"
-          :sessionId="terminalStore.activeTab.sessionId"
-          :key="terminalStore.activeTab.sessionId"
-          @resize="handleResize"
-          @connection-change="handleConnectionChange"
-        />
+        <!-- Terminal pane with KeepAlive caching to preserve scrollback on tab switch -->
+        <KeepAlive :max="10">
+          <TerminalPane
+            v-if="!isSettingsTab && terminalStore.activeTab"
+            ref="terminalPaneRef"
+            :sessionId="terminalStore.activeTab.sessionId"
+            :key="terminalStore.activeTab.sessionId"
+            @resize="handleResize"
+            @connection-change="handleConnectionChange"
+          />
+        </KeepAlive>
         <!-- Welcome / empty state -->
-        <div v-else class="welcome-page">
+        <div v-if="!isSettingsTab && !terminalStore.activeTab" class="welcome-page">
           <div class="welcome-hero">
             <div class="welcome-logo">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
