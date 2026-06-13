@@ -155,7 +155,7 @@ function getShellIcon(shell) {
 <style scoped>
 .tab-bar {
   display: flex;
-  align-items: stretch;
+  align-items: flex-end;
   height: 100%;
   background: var(--bg-deep);
   overflow: visible;
@@ -182,7 +182,7 @@ function getShellIcon(shell) {
   padding: 0 12px;
   min-width: 120px;
   max-width: 200px;
-  height: 100%;
+  height: 28px;
   background: transparent;
   border: none;
   border-radius: 16px 16px 0 0;

@@ -459,7 +459,7 @@ function logout() {
 .terminal-header {
   display: flex;
   align-items: stretch;
-  height: 32px;
+  height: 36px;
   background: var(--bg-deep);
   flex-shrink: 0;
 }
@@ -500,7 +500,7 @@ function logout() {
 .header-tabs {
   flex: 1;
   min-width: 0;
-  height: 32px;
+  height: 36px;
 }
 
 .header-right {
