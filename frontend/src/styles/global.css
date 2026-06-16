@@ -1,5 +1,55 @@
+@font-face {
+  font-family: 'MebTTY Sans';
+  src: url('../assets/fonts/NotoSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MebTTY Sans';
+  src: url('../assets/fonts/NotoSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MebTTY Sans';
+  src: url('../assets/fonts/NotoSans-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MebTTY Mono';
+  src: url('../assets/fonts/JetBrainsMonoNLNerdFont-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MebTTY Mono';
+  src: url('../assets/fonts/JetBrainsMonoNLNerdFont-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MebTTY Mono';
+  src: url('../assets/fonts/JetBrainsMonoNLNerdFont-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* Dark theme (Catppuccin Mocha) - default */
 :root, [data-theme="dark"] {
+  --font-sans: 'MebTTY Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans CJK SC', 'Noto Sans CJK TC', sans-serif;
+  --font-mono: 'MebTTY Mono', 'JetBrainsMonoNL Nerd Font', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace;
   --bg: #1e1e2e;
   --bg-deep: #181825;
   --fg: #cdd6f4;
@@ -60,7 +110,7 @@ html, body {
 body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
