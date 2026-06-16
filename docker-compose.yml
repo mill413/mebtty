@@ -3,12 +3,12 @@ services:
     build: .
     container_name: mebtty
     ports:
-      - "18888:18888"
+      - "${MEBTTY_HOST:-0.0.0.0}:${MEBTTY_PORT:-18888}:18888"
     volumes:
       - mebtty-data:/app/data
       - mebtty-uploads:/app/uploads
     environment:
-      - MEBTTY_SECRET_KEY=change-me-to-a-random-string-in-production
+      - MEBTTY_SECRET_KEY=${MEBTTY_SECRET_KEY:-change-me-to-a-random-string-in-production}
       - MEBTTY_DATABASE_URL=sqlite+aiosqlite:////app/data/mebtty.db
     restart: unless-stopped
 

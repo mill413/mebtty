@@ -3,9 +3,9 @@
 # MebTTY - One-click deployment script
 #
 # Usage:
-#   ./deploy.sh              # Build and start
+#   ./deploy.sh              # Build/rebuild and replace the running server
 #   ./deploy.sh --docker     # Build and start via Docker
-#   ./deploy.sh --stop       # Stop the running server
+#   ./deploy.sh --stop       # Stop the running server or Docker container
 #   ./deploy.sh --restart    # Restart the server
 #   ./deploy.sh --status     # Check server status
 #   ./deploy.sh --logs       # Tail server logs
@@ -104,6 +104,18 @@ check_port_available() {
     return 0
 }
 
+docker_compose_available() {
+    command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1
+}
+
+docker_compose_service_ids() {
+    if ! docker_compose_available; then
+        return 0
+    fi
+    cd "$SCRIPT_DIR"
+    docker compose ps -q mebtty 2>/dev/null || true
+}
+
 ensure_env_secret() {
     # Persist a generated secret key to .env so it survives restarts
     if [[ -z "${MEBTTY_SECRET_KEY:-}" ]]; then
@@ -117,6 +129,43 @@ ensure_env_secret() {
         echo "MEBTTY_SECRET_KEY=$key" >> "$ENV_FILE"
         export MEBTTY_SECRET_KEY="$key"
         log "Generated and persisted secret key to .env"
+    fi
+}
+
+stop_local_server_if_present() {
+    if is_server_running || [[ -f "$PID_FILE" ]]; then
+        stop_server
+        return 0
+    fi
+    return 1
+}
+
+stop_docker_deployment_if_running() {
+    local ids
+    ids=$(docker_compose_service_ids)
+    if [[ -z "$ids" ]]; then
+        return 1
+    fi
+
+    log "Stopping Docker deployment..."
+    cd "$SCRIPT_DIR"
+    docker compose down --remove-orphans
+    log "Docker deployment stopped."
+    return 0
+}
+
+stop_deployments() {
+    local stopped=0
+
+    if stop_local_server_if_present; then
+        stopped=1
+    fi
+    if stop_docker_deployment_if_running; then
+        stopped=1
+    fi
+
+    if [[ "$stopped" -eq 0 ]]; then
+        warn "MebTTY is not running."
     fi
 }
 
@@ -193,7 +242,7 @@ start_server() {
     source "$VENV_DIR/bin/activate"
 
     # Stop existing instance if running
-    stop_server
+    stop_local_server_if_present || true
 
     # Wait for port to become available
     if ! check_port_available; then
@@ -334,7 +383,22 @@ show_logs() {
 }
 
 restart_server() {
-    stop_server
+    local docker_ids
+    docker_ids=$(docker_compose_service_ids)
+    if [[ -n "$docker_ids" ]]; then
+        docker_deploy
+        return
+    fi
+
+    stop_local_server_if_present || true
+    start_server
+}
+
+deploy_local() {
+    check_deps
+    build_frontend
+    setup_backend
+    stop_docker_deployment_if_running || true
     start_server
 }
 
@@ -359,10 +423,7 @@ update_and_redeploy() {
     }
 
     log "Rebuilding and restarting..."
-    check_deps
-    build_frontend
-    setup_backend
-    start_server
+    deploy_local
 }
 
 docker_deploy() {
@@ -370,9 +431,11 @@ docker_deploy() {
         err "Docker is not installed."
         exit 1
     fi
-    log "Building and starting Docker containers..."
+    ensure_env_secret
+    stop_local_server_if_present || true
+    log "Building and replacing Docker containers..."
     cd "$SCRIPT_DIR"
-    docker compose up --build -d
+    docker compose up --build --force-recreate --remove-orphans -d
     log "Docker containers started."
     echo ""
     echo -e "${CYAN}========================================${NC}"
@@ -384,10 +447,9 @@ docker_deploy() {
 }
 
 docker_stop() {
-    log "Stopping Docker containers..."
-    cd "$SCRIPT_DIR"
-    docker compose down
-    log "Docker containers stopped."
+    if ! stop_docker_deployment_if_running; then
+        warn "Docker deployment is not running."
+    fi
 }
 
 print_help() {
@@ -396,10 +458,10 @@ print_help() {
     echo "Usage: ./deploy.sh [command]"
     echo ""
     echo "Commands:"
-    echo "  (none)             Build frontend + start backend server"
-    echo "  --docker,     -D   Deploy via Docker Compose"
+    echo "  (none)             Build frontend + replace running backend server"
+    echo "  --docker,     -D   Build/rebuild and replace Docker Compose deployment"
     echo "  --docker-stop,-K   Stop Docker containers"
-    echo "  --stop,       -s   Stop the running server"
+    echo "  --stop,       -s   Stop the running server or Docker container"
     echo "  --restart,    -r   Restart the server"
     echo "  --status,     -t   Check if the server is running"
     echo "  --logs,       -l   Tail server logs"
@@ -430,7 +492,7 @@ case "${1:-}" in
         docker_stop
         ;;
     --stop|-s)
-        stop_server
+        stop_deployments
         ;;
     --restart|-r)
         restart_server
@@ -448,9 +510,6 @@ case "${1:-}" in
         print_help
         ;;
     *)
-        check_deps
-        build_frontend
-        setup_backend
-        start_server
+        deploy_local
         ;;
 esac
