@@ -230,7 +230,7 @@ function getShellIcon(shell) {
 }
 
 .tab-icon {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--accent);
   flex-shrink: 0;

@@ -782,7 +782,7 @@ function getIndentStyle(depth) {
   color: var(--subtext);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   overflow-x: auto;
   white-space: nowrap;
   cursor: default;

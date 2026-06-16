@@ -125,14 +125,23 @@ onActivated(() => {
   }
 })
 
-function initTerminal() {
+async function initTerminal() {
+  if (document.fonts?.load) {
+    await Promise.all([
+      document.fonts.load("14px 'MebTTY Mono'"),
+      document.fonts.load("700 14px 'MebTTY Mono'")
+    ]).catch(() => {})
+  }
+
+  if (!terminalEl.value) return
+
   terminal = new Terminal({
     cursorBlink: true,
     cursorStyle: 'bar',
     cursorWidth: 2,
     scrollback: 5000,
     fontSize: 14,
-    fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
+    fontFamily: "'MebTTY Mono', 'JetBrainsMonoNL Nerd Font', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
     lineHeight: 1.3,
     allowProposedApi: true,
     theme: terminalThemes[themeStore.resolved]

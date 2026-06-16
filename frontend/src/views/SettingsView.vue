@@ -798,7 +798,7 @@ function logout() {
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--subtext);
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 /* Avatar */
