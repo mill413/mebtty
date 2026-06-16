@@ -35,6 +35,8 @@ const isDirty = computed(() => mode.value === 'text' && content.value !== origin
 const title = computed(() => metadata.value?.name || props.item?.name || '')
 const lineCount = computed(() => Math.max(1, content.value.split('\n').length))
 const lineNumberWidth = computed(() => `${Math.max(3, String(lineCount.value).length) + 1}ch`)
+const fileSize = computed(() => metadata.value?.size ?? props.item?.size ?? null)
+const fileSizeText = computed(() => formatFileSize(fileSize.value))
 const statusText = computed(() => {
   if (loading.value) return t('fileEditor.loading')
   if (saving.value) return t('fileEditor.saving')
@@ -43,6 +45,23 @@ const statusText = computed(() => {
   if (lastSavedAt.value) return t('fileEditor.saved')
   return mode.value === 'text' ? t('fileEditor.ready') : t('fileEditor.readOnly')
 })
+
+function formatFileSize(size) {
+  if (size === null || size === undefined || Number.isNaN(Number(size))) return ''
+
+  const bytes = Number(size)
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+  let value = bytes
+  let unitIndex = 0
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+
+  const rounded = unitIndex === 0 ? String(value) : value.toFixed(value >= 10 ? 1 : 2)
+  return `${rounded.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} ${units[unitIndex]}`
+}
 
 watch(() => props.item?.path, () => {
   openItem()
@@ -239,7 +258,8 @@ function stopResize() {
     </header>
 
     <div class="fe-status" :class="{ error: !!error, dirty: isDirty }">
-      {{ statusText }}
+      <span class="fe-status-text">{{ statusText }}</span>
+      <span v-if="fileSizeText" class="fe-status-size">{{ fileSizeText }}</span>
     </div>
 
     <div class="fe-body">
@@ -271,9 +291,7 @@ function stopResize() {
       <div v-else class="fe-empty">
         <div class="fe-empty-title">{{ t('fileEditor.readOnly') }}</div>
         <div class="fe-empty-detail">{{ metadata?.mime || item.mime || t('fileEditor.unknownType') }}</div>
-        <div v-if="metadata?.size || item.size" class="fe-empty-detail">
-          {{ Math.round((metadata?.size || item.size) / 1024) }} KB
-        </div>
+        <div v-if="fileSizeText" class="fe-empty-detail">{{ fileSizeText }}</div>
       </div>
     </div>
   </aside>
@@ -400,6 +418,8 @@ function stopResize() {
   height: 24px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 0 12px;
   border-bottom: 1px solid var(--border);
   color: var(--subtext);
@@ -408,6 +428,18 @@ function stopResize() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fe-status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fe-status-size {
+  flex-shrink: 0;
+  color: var(--overlay);
+  font-variant-numeric: tabular-nums;
 }
 
 .fe-status.dirty {
