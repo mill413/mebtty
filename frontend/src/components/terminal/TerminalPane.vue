@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, onUnmounted, onActivated } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
+import { ImageAddon } from 'xterm-addon-image'
 import { SearchAddon } from 'xterm-addon-search'
 import { WebLinksAddon } from 'xterm-addon-web-links'
 import 'xterm/css/xterm.css'
@@ -151,6 +152,12 @@ async function initTerminal() {
   searchAddon = new SearchAddon()
 
   terminal.loadAddon(fitAddon)
+  terminal.loadAddon(new ImageAddon({
+    sixelSupport: true,
+    iipSupport: true,
+    sixelScrolling: true,
+    storageLimit: 128
+  }))
   terminal.loadAddon(searchAddon)
   terminal.loadAddon(new WebLinksAddon())
 

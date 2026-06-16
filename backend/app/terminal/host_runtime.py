@@ -46,6 +46,10 @@ class HostRuntime(Runtime):
         child_env.update({
             "TERM": "xterm-256color",
             "COLORTERM": "truecolor",
+            # yazi uses this to select iTerm's inline image protocol,
+            # which is supported by xterm-addon-image in the browser.
+            "TERM_PROGRAM": "iTerm.app",
+            "TERM_PROGRAM_VERSION": "3.5",
             "LANG": "en_US.UTF-8",
             "LC_ALL": "en_US.UTF-8",
             "HOME": home,
