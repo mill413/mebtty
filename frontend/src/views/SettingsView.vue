@@ -41,6 +41,25 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
 const passwordSuccess = ref(false)
+const activeSection = ref('appearance')
+const sectionRefs = ref({})
+
+const settingSections = [
+  { key: 'appearance', label: 'settings.sectionAppearance' },
+  { key: 'terminal', label: 'settings.sectionTerminal' },
+  { key: 'files', label: 'settings.sectionFiles' },
+  { key: 'status', label: 'settings.sectionStatus' },
+  { key: 'account', label: 'settings.sectionAccount' }
+]
+
+function setSectionRef(key, el) {
+  if (el) sectionRefs.value[key] = el
+}
+
+function scrollToSection(key) {
+  activeSection.value = key
+  sectionRefs.value[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 // Drag and drop for status bar items
 const dragIndex = ref(null)
@@ -212,314 +231,360 @@ function logout() {
       </div>
     </header>
 
-    <main class="settings-content">
-      <!-- Language -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <h3>{{ t('settings.language') }}</h3>
-          <p>{{ t('settings.languageDesc') }}</p>
-        </div>
-        <div class="setting-control">
-          <select class="setting-select" :value="currentLocale" @change="changeLanguage($event.target.value)">
-            <option value="auto">{{ t('settings.languageAuto') }}</option>
-            <option v-for="loc in locales" :key="loc" :value="loc">{{ localeLabels[loc] || loc }}</option>
-          </select>
-        </div>
-      </div>
+    <main class="settings-layout">
+      <nav class="settings-sidebar" :aria-label="t('settings.categories')">
+        <button
+          v-for="section in settingSections"
+          :key="section.key"
+          class="settings-nav-item"
+          :class="{ active: activeSection === section.key }"
+          @click="scrollToSection(section.key)"
+        >
+          {{ t(section.label) }}
+        </button>
+      </nav>
 
-      <!-- Color Mode -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <h3>{{ t('settings.colorMode') }}</h3>
-          <p>{{ t('settings.colorModeDesc') }}</p>
-        </div>
-        <div class="setting-control">
-          <div class="theme-selector">
-            <button
-              v-for="mode in ['system', 'dark', 'light']"
-              :key="mode"
-              :class="{ active: themeStore.mode === mode }"
-              @click="changeTheme(mode)"
-              :title="t(`settings.${mode}`)"
-            >
-              <svg v-if="mode === 'system'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                <line x1="8" y1="21" x2="16" y2="21" />
-                <line x1="12" y1="17" x2="12" y2="21" />
-              </svg>
-              <svg v-else-if="mode === 'dark'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
-              </svg>
-              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="5" />
-                <line x1="12" y1="1" x2="12" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="23" />
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                <line x1="1" y1="12" x2="3" y2="12" />
-                <line x1="21" y1="12" x2="23" y2="12" />
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-              </svg>
-            </button>
+      <section class="settings-content">
+        <section class="settings-section" :ref="(el) => setSectionRef('appearance', el)">
+          <div class="settings-section-head">
+            <h2>{{ t('settings.sectionAppearance') }}</h2>
           </div>
-        </div>
-      </div>
 
-      <!-- Accent Color -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <h3>{{ t('settings.accentColor') }}</h3>
-          <p>{{ t('settings.accentColorDesc') }}</p>
-        </div>
-        <div class="setting-control">
-          <div class="color-presets">
-            <button
-              v-for="color in accentPresets"
-              :key="color"
-              class="color-preset"
-              :class="{ active: settingsStore.accentColor === color }"
-              :style="{ background: color }"
-              @click="changeAccentColor(color)"
-            >
-              <svg v-if="settingsStore.accentColor === color" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </button>
-            <label class="color-custom" :title="t('settings.accentColor')">
-              <input type="color" :value="customColor" @input="onCustomColorInput" />
-              <span class="color-custom-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="16" />
-                  <line x1="8" y1="12" x2="16" y2="12" />
-                </svg>
-              </span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab Title Format -->
-      <div class="setting-row setting-row-column">
-        <div class="setting-info">
-          <h3>{{ t('settings.tabTitleFormat') }}</h3>
-          <p>{{ t('settings.tabTitleFormatDesc') }}</p>
-        </div>
-        <div class="setting-control-full">
-          <input
-            v-model="tabFormat"
-            type="text"
-            class="setting-input"
-            @blur="saveTabFormat"
-            @keyup.enter="saveTabFormat"
-          />
-          <div class="format-preview">
-            <span class="preview-label">{{ t('settings.tabTitlePreview') }}:</span>
-            <span class="preview-value">{{ tabFormat.replace('{shell}', 'bash').replace('{index}', '1').replace('{title}', '').replace('{user}', 'admin').replace('{cwd}', '~/projects') }}</span>
-          </div>
-          <div class="format-hint">
-            <code>{shell}</code> <code>{index}</code> <code>{title}</code> <code>{user}</code> <code>{cwd}</code>
-          </div>
-        </div>
-      </div>
-
-      <!-- Status Bar -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <h3>{{ t('settings.statusBar') }}</h3>
-          <p>{{ t('settings.statusBarDesc') }}</p>
-        </div>
-        <div class="setting-control">
-          <label class="switch">
-            <input type="checkbox" :checked="settingsStore.statusBarVisible" @change="settingsStore.toggleStatusBar($event.target.checked)" />
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <!-- File Auto Save -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <h3>{{ t('settings.fileAutoSave') }}</h3>
-          <p>{{ t('settings.fileAutoSaveDesc') }}</p>
-        </div>
-        <div class="setting-control">
-          <label class="switch">
-            <input type="checkbox" :checked="settingsStore.fileAutoSave" @change="settingsStore.toggleFileAutoSave($event.target.checked)" />
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Status Bar Items -->
-      <div class="setting-row setting-row-column" v-if="settingsStore.statusBarVisible">
-        <div class="setting-info">
-          <h3>{{ t('settings.statusBarItems') }}</h3>
-          <p>{{ t('settings.statusBarItemsDesc') }}</p>
-        </div>
-        <div class="setting-control-full">
-          <div class="statusbar-items-list">
-            <div
-              v-for="(item, index) in settingsStore.statusBarItems"
-              :key="item.key"
-              class="statusbar-item-row"
-              :class="{ 'dragging': dragIndex === index, 'drag-over': dragOverIndex === index }"
-              draggable="true"
-              @dragstart="onDragStart(index, $event)"
-              @dragover="onDragOver(index, $event)"
-              @dragleave="onDragLeave"
-              @drop="onDrop(index, $event)"
-              @dragend="onDragEnd"
-            >
-              <div class="drag-handle" :title="t('settings.dragToReorder')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="9" cy="5" r="1.5"/>
-                  <circle cx="15" cy="5" r="1.5"/>
-                  <circle cx="9" cy="12" r="1.5"/>
-                  <circle cx="15" cy="12" r="1.5"/>
-                  <circle cx="9" cy="19" r="1.5"/>
-                  <circle cx="15" cy="19" r="1.5"/>
-                </svg>
-              </div>
-              <label class="checkbox-label">
-                <input type="checkbox" :checked="item.visible" @change="settingsStore.toggleStatusBarItemVisible(item.key, $event.target.checked)" />
-                <span>{{ t('settings.statusItem' + item.key.charAt(0).toUpperCase() + item.key.slice(1)) }}</span>
-              </label>
-              <select class="position-select" :value="item.position" @change="settingsStore.updateStatusBarItemPosition(item.key, $event.target.value)" :disabled="!item.visible">
-                <option value="left">{{ t('settings.statusPositionLeft') }}</option>
-                <option value="right">{{ t('settings.statusPositionRight') }}</option>
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.language') }}</h3>
+              <p>{{ t('settings.languageDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <select class="setting-select" :value="currentLocale" @change="changeLanguage($event.target.value)">
+                <option value="auto">{{ t('settings.languageAuto') }}</option>
+                <option v-for="loc in locales" :key="loc" :value="loc">{{ localeLabels[loc] || loc }}</option>
               </select>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- User Avatar -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <h3>{{ t('settings.avatar') }}</h3>
-          <p>{{ t('settings.avatarDesc') }}</p>
-        </div>
-        <div class="setting-control">
-          <div class="avatar-section">
-            <div class="avatar-circle">
-              <img v-if="getAvatarUrl()" :src="getAvatarUrl()" alt="avatar" class="avatar-img" />
-              <span v-else class="avatar-initials">{{ getInitials() }}</span>
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.colorMode') }}</h3>
+              <p>{{ t('settings.colorModeDesc') }}</p>
             </div>
-            <label class="btn-upload">
-              <input type="file" accept="image/*" @change="uploadAvatar" hidden />
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              {{ getAvatarUrl() ? t('settings.changeAvatar') : t('settings.uploadAvatar') }}
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Change Password -->
-      <div class="setting-row setting-row-column">
-        <div class="setting-info">
-          <h3>{{ t('settings.changePassword') }}</h3>
-          <p>{{ t('settings.changePasswordDesc') }}</p>
-        </div>
-        <div class="setting-control-full">
-          <div class="password-form">
-            <input
-              v-model="oldPassword"
-              type="password"
-              class="setting-input"
-              :placeholder="t('settings.currentPassword')"
-            />
-            <input
-              v-model="newPassword"
-              type="password"
-              class="setting-input"
-              :placeholder="t('settings.newPassword')"
-            />
-            <input
-              v-model="confirmPassword"
-              type="password"
-              class="setting-input"
-              :placeholder="t('settings.confirmPassword')"
-            />
-            <div class="password-actions">
-              <button class="btn-primary" @click="changePassword">
-                {{ t('settings.changePassword') }}
-              </button>
+            <div class="setting-control">
+              <div class="theme-selector">
+                <button
+                  v-for="mode in ['system', 'dark', 'light']"
+                  :key="mode"
+                  :class="{ active: themeStore.mode === mode }"
+                  @click="changeTheme(mode)"
+                  :title="t(`settings.${mode}`)"
+                >
+                  <svg v-if="mode === 'system'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
+                  <svg v-else-if="mode === 'dark'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                  </svg>
+                  <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5" />
+                    <line x1="12" y1="1" x2="12" y2="3" />
+                    <line x1="12" y1="21" x2="12" y2="23" />
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                    <line x1="1" y1="12" x2="3" y2="12" />
+                    <line x1="21" y1="12" x2="23" y2="12" />
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <p v-if="passwordError" class="msg-error">{{ passwordError }}</p>
-            <p v-if="passwordSuccess" class="msg-success">{{ t('settings.passwordChanged') }}</p>
           </div>
-        </div>
-      </div>
 
-      <!-- Sidebar Position -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <h3>{{ t('settings.sidebarPosition') }}</h3>
-          <p>{{ t('settings.sidebarPositionDesc') }}</p>
-        </div>
-        <div class="setting-control">
-          <div class="toggle-group">
-            <button
-              :class="{ active: settingsStore.sidebarPosition === 'left' }"
-              @click="changeSidebarPosition('left')"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="9" y1="3" x2="9" y2="21" />
-              </svg>
-              {{ t('settings.left') }}
-            </button>
-            <button
-              :class="{ active: settingsStore.sidebarPosition === 'right' }"
-              @click="changeSidebarPosition('right')"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="15" y1="3" x2="15" y2="21" />
-              </svg>
-              {{ t('settings.right') }}
-            </button>
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.accentColor') }}</h3>
+              <p>{{ t('settings.accentColorDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <div class="color-presets">
+                <button
+                  v-for="color in accentPresets"
+                  :key="color"
+                  class="color-preset"
+                  :class="{ active: settingsStore.accentColor === color }"
+                  :style="{ background: color }"
+                  @click="changeAccentColor(color)"
+                >
+                  <svg v-if="settingsStore.accentColor === color" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </button>
+                <label class="color-custom" :title="t('settings.accentColor')">
+                  <input type="color" :value="customColor" @input="onCustomColorInput" />
+                  <span class="color-custom-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="16" />
+                      <line x1="8" y1="12" x2="16" y2="12" />
+                    </svg>
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <!-- Session Timeout -->
-      <div class="setting-row setting-row-column">
-        <div class="setting-info">
-          <h3>{{ t('settings.sessionTimeout') }}</h3>
-          <p>{{ t('settings.sessionTimeoutDesc') }}</p>
-        </div>
-        <div class="setting-control-full">
-          <div class="timeout-controls">
-            <input
-              type="number"
-              class="setting-input setting-input-number"
-              :value="settingsStore.sessionTimeout"
-              min="0"
-              step="1"
-              @input="changeTimeout($event.target.value)"
-            />
-            <span class="timeout-unit">{{ t('settings.hours') }}</span>
+        <section class="settings-section" :ref="(el) => setSectionRef('terminal', el)">
+          <div class="settings-section-head">
+            <h2>{{ t('settings.sectionTerminal') }}</h2>
           </div>
-          <div class="timeout-presets">
-            <button
-              v-for="preset in timeoutPresets"
-              :key="preset.value"
-              class="timeout-preset"
-              :class="{ active: settingsStore.sessionTimeout === preset.value }"
-              @click="changeTimeout(preset.value)"
-            >
-              {{ preset.value === 0 ? t(preset.label) : preset.label }}
-            </button>
+
+          <div class="setting-row setting-row-column">
+            <div class="setting-info">
+              <h3>{{ t('settings.tabTitleFormat') }}</h3>
+              <p>{{ t('settings.tabTitleFormatDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <input
+                v-model="tabFormat"
+                type="text"
+                class="setting-input"
+                @blur="saveTabFormat"
+                @keyup.enter="saveTabFormat"
+              />
+              <div class="format-preview">
+                <span class="preview-label">{{ t('settings.tabTitlePreview') }}:</span>
+                <span class="preview-value">{{ tabFormat.replace('{shell}', 'bash').replace('{index}', '1').replace('{title}', '').replace('{user}', 'admin').replace('{cwd}', '~/projects') }}</span>
+              </div>
+              <div class="format-hint">
+                <code>{shell}</code> <code>{index}</code> <code>{title}</code> <code>{user}</code> <code>{cwd}</code>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.sessionTimeout') }}</h3>
+              <p>{{ t('settings.sessionTimeoutDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div class="timeout-controls">
+                <input
+                  type="number"
+                  class="setting-input setting-input-number"
+                  :value="settingsStore.sessionTimeout"
+                  min="0"
+                  step="1"
+                  @input="changeTimeout($event.target.value)"
+                />
+                <span class="timeout-unit">{{ t('settings.hours') }}</span>
+              </div>
+              <div class="timeout-presets">
+                <button
+                  v-for="preset in timeoutPresets"
+                  :key="preset.value"
+                  class="timeout-preset"
+                  :class="{ active: settingsStore.sessionTimeout === preset.value }"
+                  @click="changeTimeout(preset.value)"
+                >
+                  {{ preset.value === 0 ? t(preset.label) : preset.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-section" :ref="(el) => setSectionRef('files', el)">
+          <div class="settings-section-head">
+            <h2>{{ t('settings.sectionFiles') }}</h2>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.sidebarPosition') }}</h3>
+              <p>{{ t('settings.sidebarPositionDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <div class="toggle-group">
+                <button
+                  :class="{ active: settingsStore.sidebarPosition === 'left' }"
+                  @click="changeSidebarPosition('left')"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="9" y1="3" x2="9" y2="21" />
+                  </svg>
+                  {{ t('settings.left') }}
+                </button>
+                <button
+                  :class="{ active: settingsStore.sidebarPosition === 'right' }"
+                  @click="changeSidebarPosition('right')"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="15" y1="3" x2="15" y2="21" />
+                  </svg>
+                  {{ t('settings.right') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.fileAutoSave') }}</h3>
+              <p>{{ t('settings.fileAutoSaveDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <label class="switch">
+                <input type="checkbox" :checked="settingsStore.fileAutoSave" @change="settingsStore.toggleFileAutoSave($event.target.checked)" />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.fileLineNumbers') }}</h3>
+              <p>{{ t('settings.fileLineNumbersDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <label class="switch">
+                <input type="checkbox" :checked="settingsStore.fileShowLineNumbers" @change="settingsStore.toggleFileShowLineNumbers($event.target.checked)" />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-section" :ref="(el) => setSectionRef('status', el)">
+          <div class="settings-section-head">
+            <h2>{{ t('settings.sectionStatus') }}</h2>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.statusBar') }}</h3>
+              <p>{{ t('settings.statusBarDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <label class="switch">
+                <input type="checkbox" :checked="settingsStore.statusBarVisible" @change="settingsStore.toggleStatusBar($event.target.checked)" />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-row setting-row-column" v-if="settingsStore.statusBarVisible">
+            <div class="setting-info">
+              <h3>{{ t('settings.statusBarItems') }}</h3>
+              <p>{{ t('settings.statusBarItemsDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div class="statusbar-items-list">
+                <div
+                  v-for="(item, index) in settingsStore.statusBarItems"
+                  :key="item.key"
+                  class="statusbar-item-row"
+                  :class="{ 'dragging': dragIndex === index, 'drag-over': dragOverIndex === index }"
+                  draggable="true"
+                  @dragstart="onDragStart(index, $event)"
+                  @dragover="onDragOver(index, $event)"
+                  @dragleave="onDragLeave"
+                  @drop="onDrop(index, $event)"
+                  @dragend="onDragEnd"
+                >
+                  <div class="drag-handle" :title="t('settings.dragToReorder')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="9" cy="5" r="1.5"/>
+                      <circle cx="15" cy="5" r="1.5"/>
+                      <circle cx="9" cy="12" r="1.5"/>
+                      <circle cx="15" cy="12" r="1.5"/>
+                      <circle cx="9" cy="19" r="1.5"/>
+                      <circle cx="15" cy="19" r="1.5"/>
+                    </svg>
+                  </div>
+                  <label class="checkbox-label">
+                    <input type="checkbox" :checked="item.visible" @change="settingsStore.toggleStatusBarItemVisible(item.key, $event.target.checked)" />
+                    <span>{{ t('settings.statusItem' + item.key.charAt(0).toUpperCase() + item.key.slice(1)) }}</span>
+                  </label>
+                  <select class="position-select" :value="item.position" @change="settingsStore.updateStatusBarItemPosition(item.key, $event.target.value)" :disabled="!item.visible">
+                    <option value="left">{{ t('settings.statusPositionLeft') }}</option>
+                    <option value="right">{{ t('settings.statusPositionRight') }}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-section" :ref="(el) => setSectionRef('account', el)">
+          <div class="settings-section-head">
+            <h2>{{ t('settings.sectionAccount') }}</h2>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.avatar') }}</h3>
+              <p>{{ t('settings.avatarDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <div class="avatar-section">
+                <div class="avatar-circle">
+                  <img v-if="getAvatarUrl()" :src="getAvatarUrl()" alt="avatar" class="avatar-img" />
+                  <span v-else class="avatar-initials">{{ getInitials() }}</span>
+                </div>
+                <label class="btn-upload">
+                  <input type="file" accept="image/*" @change="uploadAvatar" hidden />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  {{ getAvatarUrl() ? t('settings.changeAvatar') : t('settings.uploadAvatar') }}
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row setting-row-column">
+            <div class="setting-info">
+              <h3>{{ t('settings.changePassword') }}</h3>
+              <p>{{ t('settings.changePasswordDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div class="password-form">
+                <input
+                  v-model="oldPassword"
+                  type="password"
+                  class="setting-input"
+                  :placeholder="t('settings.currentPassword')"
+                />
+                <input
+                  v-model="newPassword"
+                  type="password"
+                  class="setting-input"
+                  :placeholder="t('settings.newPassword')"
+                />
+                <input
+                  v-model="confirmPassword"
+                  type="password"
+                  class="setting-input"
+                  :placeholder="t('settings.confirmPassword')"
+                />
+                <div class="password-actions">
+                  <button class="btn-primary" @click="changePassword">
+                    {{ t('settings.changePassword') }}
+                  </button>
+                </div>
+                <p v-if="passwordError" class="msg-error">{{ passwordError }}</p>
+                <p v-if="passwordSuccess" class="msg-success">{{ t('settings.passwordChanged') }}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
     </main>
   </div>
 </template>
@@ -585,13 +650,74 @@ function logout() {
   color: var(--text);
 }
 
-.settings-content {
+.settings-layout {
   flex: 1;
+  display: grid;
+  grid-template-columns: 180px minmax(0, 760px);
+  justify-content: center;
+  gap: 32px;
   overflow-y: auto;
   padding: 32px 24px;
-  max-width: 700px;
   width: 100%;
-  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.settings-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: start;
+  position: sticky;
+  top: 0;
+}
+
+.settings-nav-item {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--subtext);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.settings-nav-item:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.settings-nav-item.active {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--accent);
+}
+
+.settings-content {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.settings-section {
+  scroll-margin-top: 16px;
+}
+
+.settings-section-head {
+  padding: 0 0 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-section-head h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
 }
 
 /* Setting rows */
@@ -602,6 +728,28 @@ function logout() {
   padding: 20px 0;
   border-bottom: 1px solid var(--border);
   gap: 24px;
+}
+
+@media (max-width: 760px) {
+  .settings-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px 16px;
+  }
+
+  .settings-sidebar {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .settings-nav-item {
+    width: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
 }
 
 .setting-row:last-child {

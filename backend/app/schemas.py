@@ -80,6 +80,7 @@ class UserSettingsUpdate(BaseModel):
     sidebar_position: Optional[str] = None
     session_timeout: Optional[int] = None
     file_auto_save: Optional[bool] = None
+    file_show_line_numbers: Optional[bool] = None
 
 
 class UserSettingsResponse(BaseModel):
@@ -91,6 +92,7 @@ class UserSettingsResponse(BaseModel):
     sidebar_position: str
     session_timeout: int
     file_auto_save: bool
+    file_show_line_numbers: bool
 
 
 class PasswordChange(BaseModel):

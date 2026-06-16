@@ -9,6 +9,7 @@ export const useSettingsStore = defineStore('settings', {
     sidebarPosition: 'right',
     sessionTimeout: 0,
     fileAutoSave: localStorage.getItem('mebtty-file-auto-save') !== 'false',
+    fileShowLineNumbers: localStorage.getItem('mebtty-file-show-line-numbers') === 'true',
     statusBarVisible: localStorage.getItem('mebtty-statusbar-visible') !== 'false',
     statusBarItems: JSON.parse(localStorage.getItem('mebtty-statusbar-items') || '[{"key":"shell","visible":false,"position":"left","order":0},{"key":"status","visible":false,"position":"left","order":1},{"key":"connection","visible":true,"position":"right","order":0}]'),
     loaded: false
@@ -32,7 +33,9 @@ export const useSettingsStore = defineStore('settings', {
         this.sidebarPosition = data.sidebar_position
         this.sessionTimeout = data.session_timeout
         this.fileAutoSave = data.file_auto_save !== false
+        this.fileShowLineNumbers = data.file_show_line_numbers === true
         localStorage.setItem('mebtty-file-auto-save', this.fileAutoSave)
+        localStorage.setItem('mebtty-file-show-line-numbers', this.fileShowLineNumbers)
         this.loaded = true
         this.applyAccentColor()
       } catch {
@@ -50,7 +53,9 @@ export const useSettingsStore = defineStore('settings', {
         this.sidebarPosition = data.sidebar_position
         this.sessionTimeout = data.session_timeout
         this.fileAutoSave = data.file_auto_save !== false
+        this.fileShowLineNumbers = data.file_show_line_numbers === true
         localStorage.setItem('mebtty-file-auto-save', this.fileAutoSave)
+        localStorage.setItem('mebtty-file-show-line-numbers', this.fileShowLineNumbers)
         this.applyAccentColor()
       } catch (err) {
         console.error('Failed to update settings:', err)
@@ -84,6 +89,12 @@ export const useSettingsStore = defineStore('settings', {
       this.fileAutoSave = enabled
       localStorage.setItem('mebtty-file-auto-save', enabled)
       this.updateSettings({ file_auto_save: enabled })
+    },
+
+    toggleFileShowLineNumbers(enabled) {
+      this.fileShowLineNumbers = enabled
+      localStorage.setItem('mebtty-file-show-line-numbers', enabled)
+      this.updateSettings({ file_show_line_numbers: enabled })
     },
 
     toggleStatusBarItemVisible(key, visible) {

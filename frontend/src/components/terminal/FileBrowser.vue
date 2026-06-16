@@ -7,10 +7,11 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
 const props = defineProps({
-  position: { type: String, default: 'right' }
+  position: { type: String, default: 'right' },
+  initialPath: { type: String, default: '' }
 })
 
-const emit = defineEmits(['close', 'open-file'])
+const emit = defineEmits(['close', 'open-file', 'path-change'])
 
 const isLeft = computed(() => props.position === 'left')
 
@@ -149,7 +150,7 @@ const activeDir = computed(() => {
 })
 
 onMounted(() => {
-  loadDirectory('')
+  loadDirectory(props.initialPath || '')
   document.addEventListener('click', closeContextMenu)
   startAutoRefresh()
 })
@@ -169,6 +170,7 @@ async function loadDirectory(path) {
     // API now returns absolute paths for both path and absolute_path
     const curPath = res.data.path || '/'
     currentPath.value = curPath
+    emit('path-change', curPath)
     absoluteRoot.value = '/'
 
     // Reset tree

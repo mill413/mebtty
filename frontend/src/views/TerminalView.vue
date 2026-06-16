@@ -31,6 +31,7 @@ const terminalPaneRef = ref(null)
 const terminalDims = ref({ cols: 80, rows: 24 })
 const connectionStatus = ref('disconnected')
 const showFileBrowser = ref(false)
+const fileBrowserPath = ref('')
 const activeFileItem = ref(null)
 const fileEditorDirty = ref(false)
 const showUserMenu = ref(false)
@@ -210,6 +211,10 @@ function closeFileBrowser() {
   showFileBrowser.value = false
 }
 
+function handleFileBrowserPathChange(path) {
+  fileBrowserPath.value = path
+}
+
 function handleOpenFile(item) {
   if (fileEditorDirty.value && !settingsStore.fileAutoSave && !window.confirm(t('fileEditor.discardConfirm'))) {
     return
@@ -341,8 +346,10 @@ function logout() {
       <FileBrowser
         v-if="showFileBrowser && settingsStore.sidebarOnLeft"
         :position="settingsStore.sidebarPosition"
+        :initialPath="fileBrowserPath"
         @close="closeFileBrowser"
         @open-file="handleOpenFile"
+        @path-change="handleFileBrowserPathChange"
       />
       <FileEditorPane
         v-if="activeFileItem && settingsStore.sidebarOnLeft"
@@ -457,8 +464,10 @@ function logout() {
       <FileBrowser
         v-if="showFileBrowser && !settingsStore.sidebarOnLeft"
         :position="settingsStore.sidebarPosition"
+        :initialPath="fileBrowserPath"
         @close="closeFileBrowser"
         @open-file="handleOpenFile"
+        @path-change="handleFileBrowserPathChange"
       />
     </div>
 

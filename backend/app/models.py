@@ -97,6 +97,7 @@ class UserSettings(Base):
     sidebar_position = Column(String(16), default="right", nullable=False)
     session_timeout = Column(Integer, default=0, nullable=False)  # 0 = disabled, value in hours
     file_auto_save = Column(Boolean, default=True, nullable=False)
+    file_show_line_numbers = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 

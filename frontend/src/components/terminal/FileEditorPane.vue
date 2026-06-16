@@ -26,12 +26,15 @@ const saveTimer = ref(null)
 const lastSavedAt = ref(null)
 const editorWidth = ref(420)
 const isResizing = ref(false)
+const lineNumbersEl = ref(null)
 let resizeStartX = 0
 let resizeStartWidth = 0
 
 const isLeft = computed(() => props.position === 'left')
 const isDirty = computed(() => mode.value === 'text' && content.value !== originalContent.value)
 const title = computed(() => metadata.value?.name || props.item?.name || '')
+const lineCount = computed(() => Math.max(1, content.value.split('\n').length))
+const lineNumberWidth = computed(() => `${Math.max(3, String(lineCount.value).length) + 1}ch`)
 const statusText = computed(() => {
   if (loading.value) return t('fileEditor.loading')
   if (saving.value) return t('fileEditor.saving')
@@ -172,6 +175,12 @@ function handleKeydown(e) {
   }
 }
 
+function syncLineNumberScroll(e) {
+  if (lineNumbersEl.value) {
+    lineNumbersEl.value.scrollTop = e.target.scrollTop
+  }
+}
+
 function startResize(e) {
   isResizing.value = true
   resizeStartX = e.clientX
@@ -236,13 +245,24 @@ function stopResize() {
     <div class="fe-body">
       <div v-if="loading" class="fe-empty">{{ t('fileEditor.loading') }}</div>
 
-      <textarea
+      <div
         v-else-if="mode === 'text'"
-        v-model="content"
-        class="fe-textarea"
-        spellcheck="false"
-        @keydown="handleKeydown"
-      />
+        class="fe-text-editor"
+        :class="{ 'show-line-numbers': settingsStore.fileShowLineNumbers }"
+        :style="{ '--line-number-width': lineNumberWidth }"
+      >
+        <div v-if="settingsStore.fileShowLineNumbers" ref="lineNumbersEl" class="fe-line-numbers" aria-hidden="true">
+          <div v-for="line in lineCount" :key="line" class="fe-line-number">{{ line }}</div>
+        </div>
+        <textarea
+          v-model="content"
+          class="fe-textarea"
+          spellcheck="false"
+          wrap="off"
+          @keydown="handleKeydown"
+          @scroll="syncLineNumberScroll"
+        />
+      </div>
 
       <div v-else-if="mode === 'image'" class="fe-image-wrap">
         <img :src="imageUrl" :alt="title" />
@@ -402,6 +422,36 @@ function stopResize() {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.fe-text-editor {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--bg);
+}
+
+.fe-text-editor.show-line-numbers {
+  grid-template-columns: var(--line-number-width) minmax(0, 1fr);
+}
+
+.fe-line-numbers {
+  height: 100%;
+  overflow: hidden;
+  padding: 12px 8px 12px 0;
+  box-sizing: border-box;
+  border-right: 1px solid var(--border);
+  background: var(--bg-deep);
+  color: var(--overlay);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  text-align: right;
+  user-select: none;
+}
+
+.fe-line-number {
+  height: 1.55em;
 }
 
 .fe-textarea {
