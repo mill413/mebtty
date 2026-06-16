@@ -98,6 +98,13 @@ async def migrate_db():
             await conn.execute(text("ALTER TABLE users ADD COLUMN login_shell VARCHAR(64)"))
             logger.info("Migration: added 'login_shell' column to users")
 
+        result = await conn.execute(text("PRAGMA table_info(user_settings)"))
+        settings_columns = {row[1] for row in result.fetchall()}
+
+        if "file_auto_save" not in settings_columns:
+            await conn.execute(text("ALTER TABLE user_settings ADD COLUMN file_auto_save BOOLEAN DEFAULT 1 NOT NULL"))
+            logger.info("Migration: added 'file_auto_save' column to user_settings")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -10,7 +10,7 @@ const props = defineProps({
   position: { type: String, default: 'right' }
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'open-file'])
 
 const isLeft = computed(() => props.position === 'left')
 
@@ -253,6 +253,8 @@ function handleClick(item) {
 function handleDblClick(item) {
   if (item.is_dir) {
     loadDirectory(item.path)
+  } else {
+    emit('open-file', item)
   }
 }
 

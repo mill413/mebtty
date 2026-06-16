@@ -8,6 +8,7 @@ import TerminalTabs from '../components/terminal/TerminalTabs.vue'
 import TerminalPane from '../components/terminal/TerminalPane.vue'
 import StatusBar from '../components/layout/StatusBar.vue'
 import FileBrowser from '../components/terminal/FileBrowser.vue'
+import FileEditorPane from '../components/terminal/FileEditorPane.vue'
 import SettingsView from './SettingsView.vue'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
@@ -30,6 +31,8 @@ const terminalPaneRef = ref(null)
 const terminalDims = ref({ cols: 80, rows: 24 })
 const connectionStatus = ref('disconnected')
 const showFileBrowser = ref(false)
+const activeFileItem = ref(null)
+const fileEditorDirty = ref(false)
 const showUserMenu = ref(false)
 const zenMode = ref(false)
 
@@ -207,6 +210,19 @@ function closeFileBrowser() {
   showFileBrowser.value = false
 }
 
+function handleOpenFile(item) {
+  if (fileEditorDirty.value && !settingsStore.fileAutoSave && !window.confirm(t('fileEditor.discardConfirm'))) {
+    return
+  }
+  activeFileItem.value = item
+  fileEditorDirty.value = false
+}
+
+function closeFileEditor() {
+  activeFileItem.value = null
+  fileEditorDirty.value = false
+}
+
 function openSettings() {
   showUserMenu.value = false
   terminalStore.openSettingsTab()
@@ -326,6 +342,14 @@ function logout() {
         v-if="showFileBrowser && settingsStore.sidebarOnLeft"
         :position="settingsStore.sidebarPosition"
         @close="closeFileBrowser"
+        @open-file="handleOpenFile"
+      />
+      <FileEditorPane
+        v-if="activeFileItem && settingsStore.sidebarOnLeft"
+        :item="activeFileItem"
+        :position="settingsStore.sidebarPosition"
+        @close="closeFileEditor"
+        @dirty-change="fileEditorDirty = $event"
       />
       <div class="terminal-body">
         <!-- Settings tab content -->
@@ -423,10 +447,18 @@ function logout() {
           </div>
         </div>
       </div>
+      <FileEditorPane
+        v-if="activeFileItem && !settingsStore.sidebarOnLeft"
+        :item="activeFileItem"
+        :position="settingsStore.sidebarPosition"
+        @close="closeFileEditor"
+        @dirty-change="fileEditorDirty = $event"
+      />
       <FileBrowser
         v-if="showFileBrowser && !settingsStore.sidebarOnLeft"
         :position="settingsStore.sidebarPosition"
         @close="closeFileBrowser"
+        @open-file="handleOpenFile"
       />
     </div>
 

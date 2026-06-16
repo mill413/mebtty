@@ -79,6 +79,7 @@ class UserSettingsUpdate(BaseModel):
     tab_title_format: Optional[str] = None
     sidebar_position: Optional[str] = None
     session_timeout: Optional[int] = None
+    file_auto_save: Optional[bool] = None
 
 
 class UserSettingsResponse(BaseModel):
@@ -89,6 +90,7 @@ class UserSettingsResponse(BaseModel):
     tab_title_format: str
     sidebar_position: str
     session_timeout: int
+    file_auto_save: bool
 
 
 class PasswordChange(BaseModel):

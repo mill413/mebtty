@@ -101,6 +101,20 @@ export default {
     failedDelete: '删除失败',
     showHidden: '显示隐藏文件'
   },
+  fileEditor: {
+    loading: '加载中...',
+    saving: '保存中...',
+    saved: '已保存',
+    unsaved: '有未保存修改',
+    ready: '就绪',
+    readOnly: '只读',
+    save: '保存',
+    close: '关闭',
+    openFailed: '打开文件失败',
+    saveFailed: '保存文件失败',
+    unknownType: '未知文件类型',
+    discardConfirm: '放弃未保存的修改吗？'
+  },
   settings: {
     title: '设置',
     back: '返回',
@@ -135,6 +149,8 @@ export default {
     right: '右侧',
     statusBar: '状态栏',
     statusBarDesc: '显示或隐藏底部状态栏',
+    fileAutoSave: '文件自动保存',
+    fileAutoSaveDesc: '编辑文本文件后自动保存修改',
     statusBarItems: '状态栏显示项',
     statusBarItemsDesc: '选择状态栏中显示哪些信息',
     statusItemConnection: '连接状态',

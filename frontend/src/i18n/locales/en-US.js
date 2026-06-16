@@ -101,6 +101,20 @@ export default {
     failedDelete: 'Failed to delete',
     showHidden: 'Show hidden files'
   },
+  fileEditor: {
+    loading: 'Loading...',
+    saving: 'Saving...',
+    saved: 'Saved',
+    unsaved: 'Unsaved changes',
+    ready: 'Ready',
+    readOnly: 'Read only',
+    save: 'Save',
+    close: 'Close',
+    openFailed: 'Failed to open file',
+    saveFailed: 'Failed to save file',
+    unknownType: 'Unknown file type',
+    discardConfirm: 'Discard unsaved changes?'
+  },
   settings: {
     title: 'Settings',
     back: 'Back',
@@ -135,6 +149,8 @@ export default {
     right: 'Right',
     statusBar: 'Status Bar',
     statusBarDesc: 'Show or hide the bottom status bar',
+    fileAutoSave: 'File Auto Save',
+    fileAutoSaveDesc: 'Automatically save edited text files after changes',
     statusBarItems: 'Status Bar Items',
     statusBarItemsDesc: 'Choose which information to display in the status bar',
     statusItemConnection: 'Connection Status',

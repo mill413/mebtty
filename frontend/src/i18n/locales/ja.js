@@ -100,6 +100,20 @@ export default {
     failedDelete: '削除に失敗しました',
     showHidden: '隠しファイルを表示'
   },
+  fileEditor: {
+    loading: '読み込み中...',
+    saving: '保存中...',
+    saved: '保存しました',
+    unsaved: '未保存の変更があります',
+    ready: '準備完了',
+    readOnly: '読み取り専用',
+    save: '保存',
+    close: '閉じる',
+    openFailed: 'ファイルを開けませんでした',
+    saveFailed: 'ファイルの保存に失敗しました',
+    unknownType: '不明なファイルタイプ',
+    discardConfirm: '未保存の変更を破棄しますか？'
+  },
   settings: {
     title: '設定',
     back: '戻る',
@@ -134,6 +148,8 @@ export default {
     right: '右',
     statusBar: 'ステータスバー',
     statusBarDesc: '下部のステータスバーの表示・非表示',
+    fileAutoSave: 'ファイル自動保存',
+    fileAutoSaveDesc: 'テキストファイルの変更を自動的に保存',
     statusBarItems: 'ステータスバー項目',
     statusBarItemsDesc: 'ステータスバーに表示する情報を選択',
     statusItemConnection: '接続状態',

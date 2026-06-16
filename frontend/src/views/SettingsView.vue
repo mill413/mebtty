@@ -338,6 +338,20 @@ function logout() {
         </div>
       </div>
 
+      <!-- File Auto Save -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <h3>{{ t('settings.fileAutoSave') }}</h3>
+          <p>{{ t('settings.fileAutoSaveDesc') }}</p>
+        </div>
+        <div class="setting-control">
+          <label class="switch">
+            <input type="checkbox" :checked="settingsStore.fileAutoSave" @change="settingsStore.toggleFileAutoSave($event.target.checked)" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
       <!-- Status Bar Items -->
       <div class="setting-row setting-row-column" v-if="settingsStore.statusBarVisible">
         <div class="setting-info">

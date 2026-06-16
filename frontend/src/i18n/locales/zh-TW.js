@@ -101,6 +101,20 @@ export default {
     failedDelete: '刪除失敗',
     showHidden: '顯示隱藏檔案'
   },
+  fileEditor: {
+    loading: '載入中...',
+    saving: '儲存中...',
+    saved: '已儲存',
+    unsaved: '有未儲存修改',
+    ready: '就緒',
+    readOnly: '唯讀',
+    save: '儲存',
+    close: '關閉',
+    openFailed: '開啟檔案失敗',
+    saveFailed: '儲存檔案失敗',
+    unknownType: '未知檔案類型',
+    discardConfirm: '放棄未儲存的修改嗎？'
+  },
   settings: {
     title: '設定',
     back: '返回',
@@ -135,6 +149,8 @@ export default {
     right: '右側',
     statusBar: '狀態列',
     statusBarDesc: '顯示或隱藏底部狀態列',
+    fileAutoSave: '檔案自動儲存',
+    fileAutoSaveDesc: '編輯文字檔後自動儲存修改',
     statusBarItems: '狀態列顯示項',
     statusBarItemsDesc: '選擇狀態列中顯示哪些資訊',
     statusItemConnection: '連線狀態',

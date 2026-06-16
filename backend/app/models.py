@@ -96,6 +96,7 @@ class UserSettings(Base):
     tab_title_format = Column(String(256), default="{user}: {cwd}", nullable=False)
     sidebar_position = Column(String(16), default="right", nullable=False)
     session_timeout = Column(Integer, default=0, nullable=False)  # 0 = disabled, value in hours
+    file_auto_save = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
