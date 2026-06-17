@@ -12,7 +12,6 @@ import FileEditorPane from '../components/terminal/FileEditorPane.vue'
 import SettingsView from './SettingsView.vue'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
-import ThemeToggle from '../components/common/ThemeToggle.vue'
 
 import bashIcon from '../assets/shell-icons/gnubash.svg'
 import zshIcon from '../assets/shell-icons/zsh.svg'
@@ -281,7 +280,6 @@ function logout() {
         />
       </div>
       <div class="header-right">
-        <ThemeToggle />
         <button
           class="toolbar-btn"
           :class="{ active: showFileBrowser }"
