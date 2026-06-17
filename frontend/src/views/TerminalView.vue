@@ -142,7 +142,11 @@ onMounted(async () => {
 })
 
 watch(
-  [() => terminalStore.activeTab, () => settingsStore.tabTitleFormat],
+  [
+    () => terminalStore.activeTab,
+    () => terminalStore.activeTab?.cwd,
+    () => settingsStore.tabTitleFormat
+  ],
   ([tab]) => {
     if (tab?.type === 'settings') {
       document.title = 'MebTTY - Settings'
@@ -200,6 +204,12 @@ function handleResize(dims) {
 
 function handleConnectionChange(status) {
   connectionStatus.value = status
+}
+
+function handleCwdChange({ sessionId, cwd }) {
+  if (sessionId && cwd) {
+    terminalStore.updateTabCwd(sessionId, cwd)
+  }
 }
 
 function toggleFileBrowser() {
@@ -371,6 +381,7 @@ function logout() {
             :key="terminalStore.activeTab.sessionId"
             @resize="handleResize"
             @connection-change="handleConnectionChange"
+            @cwd-change="handleCwdChange"
           />
         </KeepAlive>
         <!-- Welcome / empty state -->

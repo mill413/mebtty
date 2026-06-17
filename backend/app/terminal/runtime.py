@@ -25,6 +25,9 @@ class Runtime(ABC):
     @abstractmethod
     async def read(self) -> AsyncIterator[bytes]: ...
 
+    @abstractmethod
+    def current_cwd(self) -> str | None: ...
+
     @property
     @abstractmethod
     def is_alive(self) -> bool: ...

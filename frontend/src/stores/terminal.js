@@ -142,6 +142,14 @@ export const useTerminalStore = defineStore('terminal', {
       if (tab) tab.status = status
     },
 
+    updateTabCwd(sessionId, cwd) {
+      const tab = this.tabs.find((t) => t.sessionId === sessionId)
+      if (tab) tab.cwd = cwd
+
+      const session = this.sessions.find((s) => s.id === sessionId)
+      if (session) session.cwd = cwd
+    },
+
     async fetchSessions() {
       try {
         const { data } = await api.get('/api/sessions')

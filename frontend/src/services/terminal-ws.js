@@ -1,5 +1,5 @@
 export class TerminalWebSocket {
-  constructor(sessionId, terminal, { onConnect, onDisconnect } = {}) {
+  constructor(sessionId, terminal, { onConnect, onDisconnect, onCwdChange } = {}) {
     this.sessionId = sessionId
     this.terminal = terminal
     this.ws = null
@@ -8,6 +8,7 @@ export class TerminalWebSocket {
     this.connected = false
     this.onConnect = onConnect
     this.onDisconnect = onDisconnect
+    this.onCwdChange = onCwdChange
   }
 
   connect() {
@@ -43,6 +44,9 @@ export class TerminalWebSocket {
           break
         case 0x06: // ERROR
           this.terminal.write(`\r\n\x1b[31m[Error] ${new TextDecoder().decode(payload)}\x1b[0m\r\n`)
+          break
+        case 0x07: // CWD
+          this.onCwdChange?.(new TextDecoder().decode(payload))
           break
       }
     }

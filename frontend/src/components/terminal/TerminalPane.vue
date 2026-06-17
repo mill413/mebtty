@@ -16,7 +16,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['resize', 'connection-change'])
+const emit = defineEmits(['resize', 'connection-change', 'cwd-change'])
 
 const themeStore = useThemeStore()
 const terminalEl = ref(null)
@@ -232,6 +232,9 @@ async function initTerminal() {
     },
     onDisconnect: () => {
       emit('connection-change', 'disconnected')
+    },
+    onCwdChange: (cwd) => {
+      emit('cwd-change', { sessionId: props.sessionId, cwd })
     }
   })
   wsConnection.connect()

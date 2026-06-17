@@ -193,6 +193,14 @@ class HostRuntime(Runtime):
                 break
             yield data
 
+    def current_cwd(self) -> str | None:
+        if self._pid is None:
+            return None
+        try:
+            return os.readlink(f"/proc/{self._pid}/cwd")
+        except OSError:
+            return None
+
     @property
     def is_alive(self) -> bool:
         if not self._alive or self._pid is None:

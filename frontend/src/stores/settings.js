@@ -139,15 +139,24 @@ export const useSettingsStore = defineStore('settings', {
     },
 
     formatTabTitle(template, shell, index, title, user = '', cwd = '') {
-      const shortCwd = cwd
-        ? (cwd.length > 20 ? '...' + cwd.slice(-17) : cwd)
-        : '~'
+      const displayCwd = this.formatCwd(cwd, user)
       return template
         .replace('{shell}', shell?.split('/').pop() || 'bash')
         .replace('{index}', index)
         .replace('{title}', title || '')
         .replace('{user}', user || 'user')
-        .replace('{cwd}', shortCwd)
+        .replace('{cwd}', displayCwd)
+    },
+
+    formatCwd(cwd = '', user = '') {
+      const normalized = cwd.trim().replace(/\/+$/, '') || '~'
+      const homeCandidates = ['~', '/root']
+      if (user) homeCandidates.push(`/home/${user}`)
+
+      if (homeCandidates.includes(normalized)) return '~'
+
+      const parts = normalized.split('/').filter(Boolean)
+      return parts.at(-1) || '~'
     }
   }
 })
