@@ -2,6 +2,7 @@
 
 <p align="center">
   <strong>A self-hosted web terminal that brings the full power of your server to any browser.</strong><br>
+  <em>MebTTY = MebTTY Makes Browsers TTY.</em><br>
   Open a tab, pick your shell, and start working — no SSH client, no setup, no friction.
 </p>
 
@@ -10,6 +11,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/version-0.1.0-blueviolet" alt="Version">
   <img src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/vue-3.4%2B-brightgreen?logo=vue.js&logoColor=white" alt="Vue">
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
@@ -19,7 +21,7 @@
 
 MebTTY turns any modern browser into a fully-featured terminal. Built with **FastAPI** and **Vue 3**, it provides real PTY sessions with support for bash, zsh, fish, nushell and more — including oh-my-zsh themes and interactive TUI programs like vim, htop, and less.
 
-A built-in **file browser** lets you browse, upload, download, rename, and delete files alongside your terminal. A **Catppuccin-themed** UI with dark/light modes, customizable accent colors, multi-tab support, and four languages (English, 简体中文, 繁體中文, 日本語) make it pleasant to use every day.
+A built-in **file browser** lets you browse, preview, edit, upload, download, rename, and delete files alongside your terminal. A **Catppuccin-themed** UI with dark/light modes, customizable accent colors, multi-tab support, and four languages (English, 简体中文, 繁體中文, 日本語) make it pleasant to use every day.
 
 Deploy with a single script or Docker — and access your server from anywhere.
 
@@ -41,12 +43,17 @@ Deploy with a single script or Docker — and access your server from anywhere.
 - **Tab Management** — Create, close, rename (double-click), and drag-reorder tabs
 - **Settings as a Tab** — Settings page opens as a tab within the terminal view for seamless workflow
 - **Customizable Tab Titles** — Template-based titles with `{shell}`, `{index}`, `{title}`, `{user}`, `{cwd}` variables
+- **Live Working Directory Titles** — `{cwd}` follows the active shell directory and displays compact names (`~` for home, last directory otherwise)
 - **Dynamic Browser Title** — Window title updates to reflect the active session
 
 ### File Browser
 
 - **Sidebar Explorer** — Toggleable, resizable sidebar with directory tree view and breadcrumb navigation
 - **Full File Operations** — Browse, upload, download, create directories, rename, and delete files
+- **Inline Preview & Editor** — Double-click text files to open a resizable editor pane beside the terminal
+- **Auto-Save by Default** — Text edits save automatically, with manual save support and dirty-state protection
+- **Read-Only Media Preview** — Images open as previews; unsupported non-text files show metadata instead of editing controls
+- **Optional Line Numbers** — File editor line numbers can be enabled in settings
 - **Catppuccin File Icons** — 200+ themed SVG icons for files and folders
 - **Context Menu** — Right-click for quick file operations
 - **Configurable Root** — Set the browse root directory via environment variable
@@ -69,6 +76,7 @@ Deploy with a single script or Docker — and access your server from anywhere.
 ### Security & Administration
 
 - **JWT Authentication** — Token-based auth with access/refresh token rotation and bcrypt password hashing
+- **Automatic Token Refresh** — Expired access tokens are refreshed transparently before redirecting to login
 - **User Avatar** — Upload and display profile pictures (PNG, JPEG, WebP, GIF)
 - **Audit Logging** — Track all user actions and executed commands with risk levels
 - **Admin Controls** — Admin-only audit event listing; per-user access scoping
@@ -77,6 +85,7 @@ Deploy with a single script or Docker — and access your server from anywhere.
 ### Deployment & Operations
 
 - **One-Click Deploy** — Single shell script handles dependency checks, build, and server startup
+- **Repeatable Redeploys** — Re-run `./deploy.sh` or `./deploy.sh --docker` to rebuild and replace the running instance
 - **Standalone Executable** — Build a single Linux binary with PyInstaller, install as a systemd service with security hardening and auto-restart
 - **Docker Support** — Multi-stage build with persistent volumes and auto-restart
 - **Session Auto-Cleanup** — Stale sessions cleaned on server restart; expired sessions auto-deleted by configurable timeout
@@ -143,6 +152,7 @@ Open `http://localhost:18888` and register your first account.
 ```
 
 This will automatically install dependencies, build the frontend and start the server on port 18888.
+It is safe to run repeatedly after code changes; the script replaces the currently running instance.
 
 ```bash
 ./deploy.sh --status     # Check server status
@@ -282,7 +292,8 @@ mebtty/
 │   │   │   ├── terminal/        #   Terminal-specific components
 │   │   │   │   ├── TerminalPane.vue   # xterm.js wrapper
 │   │   │   │   ├── TerminalTabs.vue   # Multi-tab UI
-│   │   │   │   └── FileBrowser.vue    # Sidebar file explorer
+│   │   │   │   ├── FileBrowser.vue    # Sidebar file explorer
+│   │   │   │   └── FileEditorPane.vue # File preview and text editor
 │   │   │   └── common/
 │   │   │       └── ThemeToggle.vue    # Theme mode switcher
 │   │   ├── views/               # Page-level components
@@ -328,6 +339,7 @@ The terminal uses a custom binary protocol for efficiency:
 | `0x04`  | HEARTBEAT | Bidirectional   | Keep-alive ping    |
 | `0x05`  | CLOSE     | Bidirectional   | Graceful close     |
 | `0x06`  | ERROR     | Server → Client | Error message      |
+| `0x07`  | CWD       | Server → Client | Current directory  |
 
 ## API Reference
 
@@ -367,6 +379,8 @@ The terminal uses a custom binary protocol for efficiency:
 | GET    | `/api/files/browse`            | Browse directory contents        |
 | POST   | `/api/files/upload-browse`     | Upload file to a directory       |
 | GET    | `/api/files/download-browse`   | Download a file                  |
+| GET    | `/api/files/read`              | Read a text file for editing     |
+| PUT    | `/api/files/write`             | Save a text file                 |
 | POST   | `/api/files/mkdir`             | Create a new directory           |
 | POST   | `/api/files/rename`            | Rename a file or directory       |
 | POST   | `/api/files/delete`            | Delete a file or directory       |
@@ -410,6 +424,53 @@ npm run dev
 
 The frontend dev server runs on `http://localhost:3000` and proxies `/api` requests to the backend.
 
+## Open Source & Third-Party Notices
+
+MebTTY is built on open-source software and includes a small number of bundled assets. The table below lists the major direct dependencies and assets that are relevant to normal use and redistribution. Transitive dependencies are recorded in the lock files and package metadata generated by each ecosystem.
+
+### Backend
+
+| Project | Used for | License |
+| ------- | -------- | ------- |
+| [FastAPI](https://fastapi.tiangolo.com/) | HTTP API framework | MIT |
+| [Uvicorn](https://www.uvicorn.org/) | ASGI server | BSD-3-Clause |
+| [SQLAlchemy](https://www.sqlalchemy.org/) | ORM and database access | MIT |
+| [Alembic](https://alembic.sqlalchemy.org/) | Database migrations | MIT |
+| [Pydantic](https://docs.pydantic.dev/) / [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) | Data validation and configuration | MIT |
+| [python-jose](https://github.com/mpdavis/python-jose) | JWT handling | MIT |
+| [passlib](https://passlib.readthedocs.io/) / [bcrypt](https://github.com/pyca/bcrypt) | Password hashing utilities | BSD / Apache-2.0 |
+| [python-multipart](https://github.com/Kludex/python-multipart) | Multipart form parsing and uploads | Apache-2.0 |
+| [aiofiles](https://github.com/Tinche/aiofiles) | Async file I/O | Apache-2.0 |
+| [websockets](https://websockets.readthedocs.io/) | WebSocket protocol support | BSD-3-Clause |
+| [aiosqlite](https://aiosqlite.omnilib.dev/) | Async SQLite access | MIT |
+| [redis-py](https://redis.readthedocs.io/) | Redis client support | MIT |
+
+### Frontend
+
+| Project | Used for | License |
+| ------- | -------- | ------- |
+| [Vue](https://vuejs.org/) | UI framework | MIT |
+| [Vue Router](https://router.vuejs.org/) | Client-side routing | MIT |
+| [Pinia](https://pinia.vuejs.org/) | Application state management | MIT |
+| [vue-i18n](https://vue-i18n.intlify.dev/) | Internationalization | MIT |
+| [Axios](https://axios-http.com/) | HTTP client | MIT |
+| [xterm.js](https://xtermjs.org/) and addons | Browser terminal emulator | MIT |
+| [Split.js](https://split.js.org/) | Resizable split panes | MIT |
+| [vscode-icon-resolver](https://github.com/DevYatsu/file-extension-icon) | File icon name resolution | MIT |
+| [Vite](https://vite.dev/) / [@vitejs/plugin-vue](https://github.com/vitejs/vite-plugin-vue) | Frontend build tooling | MIT |
+
+### Bundled Assets
+
+| Asset | Used for | License / Notice |
+| ----- | -------- | ---------------- |
+| Noto Sans | UI font | Apache-2.0, see [`frontend/src/assets/fonts/NotoSans-OFL.txt`](frontend/src/assets/fonts/NotoSans-OFL.txt) |
+| JetBrains Mono Nerd Font | Terminal font | SIL Open Font License 1.1, see [`frontend/src/assets/fonts/JetBrainsMonoNLNerdFont-OFL.txt`](frontend/src/assets/fonts/JetBrainsMonoNLNerdFont-OFL.txt) |
+| [Catppuccin Icons for VSCode](https://github.com/catppuccin/vscode-icons) | File and folder icons | MIT, bundled SVG assets under [`frontend/public/catppuccin-icons/`](frontend/public/catppuccin-icons/) |
+
+When updating dependencies or replacing bundled assets, keep the corresponding upstream copyright notices and license terms with the distribution.
+
 ## License
 
-MIT
+MebTTY is released under the MIT License. See [`LICENSE`](LICENSE) for the full license text.
+
+Unless otherwise noted, source files authored for this project are licensed under MIT. Third-party dependencies and bundled assets remain under their respective upstream licenses. This section is provided as a practical notice for users and redistributors; it does not replace the original license texts shipped by upstream projects.
