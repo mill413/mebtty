@@ -64,6 +64,12 @@ const showDeleteConfirm = ref(false)
 const deleteItem = ref(null)
 const showHidden = ref(false)              // show hidden files (dotfiles)
 
+function fetchDirectory(path) {
+  return api.get('/api/files/browse', {
+    params: { path: path || '', show_hidden: showHidden.value }
+  })
+}
+
 // --- Show hidden files toggle ---
 async function toggleShowHidden() {
   showHidden.value = !showHidden.value
@@ -94,7 +100,7 @@ async function autoRefresh() {
   try {
     // Refresh current directory
     if (currentPath.value !== null && currentPath.value !== undefined) {
-      const res = await api.get('/api/files/browse', { params: { path: currentPath.value || '', show_hidden: showHidden.value } })
+      const res = await fetchDirectory(currentPath.value)
       // Preserve selection if the item still exists
       const oldSelected = selectedItem.value
       tree.length = 0
@@ -114,7 +120,7 @@ async function autoRefresh() {
       // Refresh all expanded subdirectories
       for (const path of expandedPaths) {
         try {
-          const childRes = await api.get('/api/files/browse', { params: { path, show_hidden: showHidden.value } })
+          const childRes = await fetchDirectory(path)
           childrenMap[path] = childRes.data.items
         } catch (err) {
           // Subdirectory may have been deleted — remove from expanded set
@@ -166,7 +172,7 @@ onUnmounted(() => {
 async function loadDirectory(path) {
   loadingPaths.add(path)
   try {
-    const res = await api.get('/api/files/browse', { params: { path, show_hidden: showHidden.value } })
+    const res = await fetchDirectory(path)
     // API now returns absolute paths for both path and absolute_path
     const curPath = res.data.path || '/'
     currentPath.value = curPath
@@ -204,7 +210,7 @@ async function loadChildren(item) {
 
   loadingPaths.add(item.path)
   try {
-    const res = await api.get('/api/files/browse', { params: { path: item.path, show_hidden: showHidden.value } })
+    const res = await fetchDirectory(item.path)
     childrenMap[item.path] = res.data.items
     expandedPaths.add(item.path)
   } catch (err) {
@@ -399,7 +405,7 @@ async function refreshAfter(path) {
   }
   // Refresh a subdirectory's children
   try {
-    const res = await api.get('/api/files/browse', { params: { path, show_hidden: showHidden.value } })
+    const res = await fetchDirectory(path)
     childrenMap[path] = res.data.items
   } catch (err) {
     console.error('Failed to refresh:', err)
@@ -409,7 +415,7 @@ async function refreshAfter(path) {
 async function refreshAll(clearSelection = true) {
   try {
     // Reload current directory
-    const res = await api.get('/api/files/browse', { params: { path: currentPath.value || '', show_hidden: showHidden.value } })
+    const res = await fetchDirectory(currentPath.value)
     tree.length = 0
     tree.push(...res.data.items.map(item => ({ ...item, depth: 0 })))
     childrenMap[currentPath.value || ''] = res.data.items
@@ -421,7 +427,7 @@ async function refreshAll(clearSelection = true) {
     // Reload all expanded subdirectories
     for (const path of expandedPaths) {
       try {
-        const childRes = await api.get('/api/files/browse', { params: { path, show_hidden: showHidden.value } })
+        const childRes = await fetchDirectory(path)
         childrenMap[path] = childRes.data.items
       } catch (err) {
         expandedPaths.delete(path)

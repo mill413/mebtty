@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import api from '../../services/api'
 import { useSettingsStore } from '../../stores/settings'
 import { useI18n } from 'vue-i18n'
+import { formatFileSize } from '../../utils/format'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -45,23 +46,6 @@ const statusText = computed(() => {
   if (lastSavedAt.value) return t('fileEditor.saved')
   return mode.value === 'text' ? t('fileEditor.ready') : t('fileEditor.readOnly')
 })
-
-function formatFileSize(size) {
-  if (size === null || size === undefined || Number.isNaN(Number(size))) return ''
-
-  const bytes = Number(size)
-  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
-  let value = bytes
-  let unitIndex = 0
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024
-    unitIndex += 1
-  }
-
-  const rounded = unitIndex === 0 ? String(value) : value.toFixed(value >= 10 ? 1 : 2)
-  return `${rounded.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} ${units[unitIndex]}`
-}
 
 watch(() => props.item?.path, () => {
   openItem()
