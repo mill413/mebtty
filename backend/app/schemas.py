@@ -76,6 +76,8 @@ class CommandLogResponse(BaseModel):
 class UserSettingsUpdate(BaseModel):
     theme_mode: Optional[str] = None
     accent_color: Optional[str] = None
+    custom_theme_enabled: Optional[bool] = None
+    custom_theme: Optional[str] = None
     tab_title_format: Optional[str] = None
     sidebar_position: Optional[str] = None
     session_timeout: Optional[int] = None
@@ -88,6 +90,8 @@ class UserSettingsResponse(BaseModel):
 
     theme_mode: str
     accent_color: str
+    custom_theme_enabled: bool
+    custom_theme: str
     tab_title_format: str
     sidebar_position: str
     session_timeout: int

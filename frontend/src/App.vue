@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useThemeStore, mediaQuery } from './stores/theme'
 import { useSettingsStore } from './stores/settings'
 
@@ -7,6 +7,11 @@ const themeStore = useThemeStore()
 themeStore.apply()
 
 const settingsStore = useSettingsStore()
+
+watch(
+  () => themeStore.resolved,
+  () => settingsStore.applyThemeColors()
+)
 
 let handler = null
 

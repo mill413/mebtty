@@ -34,7 +34,18 @@ function changeLanguage(locale) {
 }
 
 const accentPresets = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4']
-const customColor = ref('')
+const customThemeFields = [
+  { key: 'bg', label: 'settings.themeBg' },
+  { key: 'bgDeep', label: 'settings.themeBgDeep' },
+  { key: 'surface', label: 'settings.themeSurface' },
+  { key: 'surfaceHover', label: 'settings.themeSurfaceHover' },
+  { key: 'overlay', label: 'settings.themeOverlay' },
+  { key: 'text', label: 'settings.themeText' },
+  { key: 'subtext', label: 'settings.themeSubtext' },
+  { key: 'border', label: 'settings.themeBorder' },
+  { key: 'accent', label: 'settings.themeAccent' }
+]
+const customThemeModes = ['dark', 'light']
 const tabFormat = ref('')
 const oldPassword = ref('')
 const newPassword = ref('')
@@ -43,6 +54,11 @@ const passwordError = ref('')
 const passwordSuccess = ref(false)
 const activeSection = ref('appearance')
 const sectionRefs = ref({})
+const activeThemeAccent = computed(() => {
+  if (!settingsStore.customThemeEnabled) return settingsStore.accentColor
+  const mode = themeStore.resolved === 'light' ? 'light' : 'dark'
+  return settingsStore.customTheme[mode]?.accent || settingsStore.accentColor
+})
 
 const settingSections = [
   { key: 'appearance', label: 'settings.sectionAppearance' },
@@ -97,17 +113,21 @@ function onDragEnd() {
 onMounted(async () => {
   if (!authStore.user) await authStore.fetchUser()
   if (!settingsStore.loaded) await settingsStore.fetchSettings()
-  customColor.value = settingsStore.accentColor
   tabFormat.value = settingsStore.tabTitleFormat
 })
 
 function changeTheme(mode) {
   themeStore.setMode(mode)
+  settingsStore.applyThemeColors()
   settingsStore.updateSettings({ theme_mode: mode })
 }
 
 function changeAccentColor(color) {
-  customColor.value = color
+  if (settingsStore.customThemeEnabled) {
+    const mode = themeStore.resolved === 'light' ? 'light' : 'dark'
+    settingsStore.updateCustomThemeColor(mode, 'accent', color)
+    return
+  }
   settingsStore.accentColor = color
   settingsStore.applyAccentColor()
   settingsStore.updateSettings({ accent_color: color })
@@ -115,6 +135,18 @@ function changeAccentColor(color) {
 
 function onCustomColorInput(e) {
   changeAccentColor(e.target.value)
+}
+
+function toggleCustomTheme(enabled) {
+  settingsStore.toggleCustomTheme(enabled)
+}
+
+function changeCustomThemeColor(mode, key, color) {
+  settingsStore.updateCustomThemeColor(mode, key, color)
+}
+
+function resetCustomTheme() {
+  settingsStore.resetCustomTheme()
 }
 
 function saveTabFormat() {
@@ -312,16 +344,16 @@ function logout() {
                   v-for="color in accentPresets"
                   :key="color"
                   class="color-preset"
-                  :class="{ active: settingsStore.accentColor === color }"
+                  :class="{ active: activeThemeAccent === color }"
                   :style="{ background: color }"
                   @click="changeAccentColor(color)"
                 >
-                  <svg v-if="settingsStore.accentColor === color" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                  <svg v-if="activeThemeAccent === color" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </button>
                 <label class="color-custom" :title="t('settings.accentColor')">
-                  <input type="color" :value="customColor" @input="onCustomColorInput" />
+                  <input type="color" :value="activeThemeAccent" @input="onCustomColorInput" />
                   <span class="color-custom-icon">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="10" />
@@ -330,6 +362,55 @@ function logout() {
                     </svg>
                   </span>
                 </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <h3>{{ t('settings.customTheme') }}</h3>
+              <p>{{ t('settings.customThemeDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <label class="switch">
+                <input type="checkbox" :checked="settingsStore.customThemeEnabled" @change="toggleCustomTheme($event.target.checked)" />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-row setting-row-column custom-theme-row" v-if="settingsStore.customThemeEnabled">
+            <div class="setting-info">
+              <h3>{{ t('settings.customThemeColors') }}</h3>
+              <p>{{ t('settings.customThemeColorsDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div class="custom-theme-mode-list">
+                <div v-for="mode in customThemeModes" :key="mode" class="custom-theme-mode">
+                  <h4>{{ t(`settings.${mode}`) }}</h4>
+                  <div class="custom-theme-grid">
+                    <label
+                      v-for="field in customThemeFields"
+                      :key="`${mode}-${field.key}`"
+                      class="theme-color-field"
+                    >
+                      <span>{{ t(field.label) }}</span>
+                      <div class="theme-color-control">
+                        <input
+                          type="color"
+                          :value="settingsStore.customTheme[mode][field.key]"
+                          @input="changeCustomThemeColor(mode, field.key, $event.target.value)"
+                        />
+                        <code>{{ settingsStore.customTheme[mode][field.key] }}</code>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="custom-theme-actions">
+                <button class="btn-secondary" @click="resetCustomTheme">
+                  {{ t('settings.resetCustomTheme') }}
+                </button>
               </div>
             </div>
           </div>
@@ -879,6 +960,83 @@ function logout() {
   pointer-events: none;
 }
 
+.custom-theme-row {
+  gap: 0;
+}
+
+.custom-theme-mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.custom-theme-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.custom-theme-mode h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.custom-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.theme-color-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.theme-color-field > span {
+  font-size: 12px;
+  color: var(--subtext);
+}
+
+.theme-color-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.theme-color-control input {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.theme-color-control code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.custom-theme-actions {
+  margin-top: 12px;
+}
+
 /* Select */
 .setting-select {
   padding: 7px 32px 7px 12px;
@@ -1043,6 +1201,26 @@ function logout() {
 
 .btn-primary:hover {
   background: var(--accent-hover);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
 }
 
 .msg-error {

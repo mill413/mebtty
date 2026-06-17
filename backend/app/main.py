@@ -109,6 +109,14 @@ async def migrate_db():
             await conn.execute(text("ALTER TABLE user_settings ADD COLUMN file_show_line_numbers BOOLEAN DEFAULT 0 NOT NULL"))
             logger.info("Migration: added 'file_show_line_numbers' column to user_settings")
 
+        if "custom_theme_enabled" not in settings_columns:
+            await conn.execute(text("ALTER TABLE user_settings ADD COLUMN custom_theme_enabled BOOLEAN DEFAULT 0 NOT NULL"))
+            logger.info("Migration: added 'custom_theme_enabled' column to user_settings")
+
+        if "custom_theme" not in settings_columns:
+            await conn.execute(text("ALTER TABLE user_settings ADD COLUMN custom_theme TEXT DEFAULT '{}' NOT NULL"))
+            logger.info("Migration: added 'custom_theme' column to user_settings")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
