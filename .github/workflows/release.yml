@@ -1,0 +1,337 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on master branch
+        run: |
+          git fetch origin master
+          TAG_COMMIT="${GITHUB_SHA}"
+          MASTER_HEAD="$(git rev-parse origin/master)"
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" "$MASTER_HEAD"; then
+            echo "::error::Tag ${GITHUB_REF_NAME} is not on the master branch. Aborting."
+            exit 1
+          fi
+          echo "Tag ${GITHUB_REF_NAME} is on master branch, proceeding."
+
+      - name: Validate tag format
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.dev)?$ ]]; then
+            echo "::error::Invalid tag format '${GITHUB_REF_NAME}'. Allowed formats: vx.y.z or vx.y.z.dev (e.g., v1.2.3, v1.0.0.dev)"
+            exit 1
+          fi
+          echo "Tag format is valid: ${GITHUB_REF_NAME}"
+
+      - name: Set version
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "binary=mebtty-${VERSION}-linux-amd64" >> "$GITHUB_OUTPUT"
+          echo "deb=mebtty_${VERSION}_amd64.deb" >> "$GITHUB_OUTPUT"
+          echo "aur_src=mebtty-${VERSION}-1.src.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "Building version: $VERSION"
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Install Python dependencies
+        run: |
+          cd backend
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable with PyInstaller
+        run: |
+          cd backend
+          source venv/bin/activate
+          pyinstaller --clean --noconfirm mebtty.spec
+          chmod +x dist/mebtty
+
+      - name: Prepare standalone binary
+        run: |
+          cp backend/dist/mebtty "${{ steps.version.outputs.binary }}"
+          chmod +x "${{ steps.version.outputs.binary }}"
+          ls -lh "${{ steps.version.outputs.binary }}"
+
+      - name: Assemble deb package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_DIR="mebtty_${VERSION}_amd64"
+
+          mkdir -p "$PKG_DIR/DEBIAN"
+          mkdir -p "$PKG_DIR/usr/local/bin"
+          mkdir -p "$PKG_DIR/lib/systemd/system"
+
+          cp backend/dist/mebtty "$PKG_DIR/usr/local/bin/mebtty"
+          chmod 755 "$PKG_DIR/usr/local/bin/mebtty"
+
+          cp mebtty.service "$PKG_DIR/lib/systemd/system/mebtty.service"
+          chmod 644 "$PKG_DIR/lib/systemd/system/mebtty.service"
+
+          sed "s/\${VERSION}/$VERSION/g" pkg/deb/DEBIAN/control > "$PKG_DIR/DEBIAN/control"
+          cp pkg/deb/DEBIAN/postinst "$PKG_DIR/DEBIAN/postinst"
+          cp pkg/deb/DEBIAN/prerm "$PKG_DIR/DEBIAN/prerm"
+          cp pkg/deb/DEBIAN/postrm "$PKG_DIR/DEBIAN/postrm"
+          chmod 755 "$PKG_DIR/DEBIAN/postinst" "$PKG_DIR/DEBIAN/prerm" "$PKG_DIR/DEBIAN/postrm"
+
+      - name: Build deb package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_DIR="mebtty_${VERSION}_amd64"
+          dpkg-deb --build --root-owner-group "$PKG_DIR"
+          ls -lh "${{ steps.version.outputs.deb }}"
+
+      - name: Prepare AUR source package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          AUR_DIR="$PWD/aur-package"
+
+          rm -rf "$AUR_DIR"
+          mkdir -p "$AUR_DIR"
+          cp pkg/aur/PKGBUILD "$AUR_DIR/PKGBUILD"
+          cp pkg/aur/mebtty.install "$AUR_DIR/mebtty.install"
+          cp pkg/aur/mebtty.tmpfiles "$AUR_DIR/mebtty.tmpfiles"
+
+          BINARY_SHA="$(sha256sum "${{ steps.version.outputs.binary }}" | cut -d " " -f1)"
+          SERVICE_SHA="$(sha256sum mebtty.service | cut -d " " -f1)"
+          LICENSE_SHA="$(sha256sum LICENSE | cut -d " " -f1)"
+
+          python3 - "$AUR_DIR/PKGBUILD" "$VERSION" "$BINARY_SHA" "$SERVICE_SHA" "$LICENSE_SHA" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          version, binary_sha, service_sha, license_sha = sys.argv[2:6]
+          text = path.read_text()
+          text = text.replace("pkgver=0.1.0", f"pkgver={version}")
+
+          start = text.index("sha256sums_x86_64=(")
+          end = text.index(")", start)
+          replacement = "\n".join([
+              "sha256sums_x86_64=(",
+              f"  '{binary_sha}'",
+              f"  '{service_sha}'",
+              f"  '{license_sha}'",
+          ])
+          text = text[:start] + replacement + text[end:]
+          path.write_text(text)
+          PY
+
+          docker run --rm \
+            -v "$AUR_DIR:/pkg" \
+            archlinux:latest \
+            bash -lc '
+              set -euo pipefail
+              pacman -Sy --noconfirm --needed base-devel git
+              useradd -m builder
+              chown -R builder:builder /pkg
+              su builder -c "cd /pkg && makepkg --printsrcinfo > .SRCINFO"
+              su builder -c "cd /pkg && makepkg --source --noconfirm --skipinteg --noextract"
+            '
+
+          mv "$AUR_DIR/${{ steps.version.outputs.aur_src }}" "${{ steps.version.outputs.aur_src }}"
+          ls -lh "${{ steps.version.outputs.aur_src }}"
+
+      - name: Generate checksums
+        run: |
+          sha256sum \
+            "${{ steps.version.outputs.binary }}" \
+            "${{ steps.version.outputs.deb }}" \
+            "${{ steps.version.outputs.aur_src }}" \
+            > checksums.txt
+          cat checksums.txt
+
+      - name: Generate release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="${GITHUB_REF_NAME}" \
+            -f configuration_file_path=".github/release.yml" \
+            --jq '.body' > generated-notes.md
+
+          cat > RELEASE_NOTES.md <<EOF
+          ## Release Summary
+
+          MebTTY ${GITHUB_REF_NAME} packages the web terminal server as a standalone Linux binary and a Debian package.
+
+          EOF
+
+          cat generated-notes.md >> RELEASE_NOTES.md
+
+          cat >> RELEASE_NOTES.md <<EOF
+
+          ## How to Use
+
+          ### Standalone Binary
+
+          Download \`${{ steps.version.outputs.binary }}\`, then run:
+
+          \`\`\`bash
+          chmod +x ${{ steps.version.outputs.binary }}
+          sudo ./${{ steps.version.outputs.binary }}
+          \`\`\`
+
+          Run as root when you need local-user terminal sessions. MebTTY authenticates local users with PAM and drops each terminal session to the selected local user's uid/gid.
+
+          ### Debian Package
+
+          Download \`${{ steps.version.outputs.deb }}\`, then run:
+
+          \`\`\`bash
+          sudo apt install ./${{ steps.version.outputs.deb }}
+          sudo systemctl enable --now mebtty
+          \`\`\`
+
+          ### Docker or Source Deployment
+
+          You can also deploy from source with:
+
+          \`\`\`bash
+          ./deploy.sh
+          \`\`\`
+
+          ### AUR
+
+          Once the AUR package is published, Arch Linux users can install:
+
+          \`\`\`bash
+          yay -S mebtty
+          \`\`\`
+
+          ## Release Assets
+
+          - \`${{ steps.version.outputs.binary }}\`: standalone Linux amd64 executable
+          - \`${{ steps.version.outputs.deb }}\`: Debian/Ubuntu amd64 package
+          - \`${{ steps.version.outputs.aur_src }}\`: AUR source package for \`mebtty\`
+          - \`checksums.txt\`: SHA256 checksums for release assets
+
+          ## Verify Downloads
+
+          \`\`\`bash
+          sha256sum -c checksums.txt
+          \`\`\`
+          EOF
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mebtty-${{ steps.version.outputs.version }}-release-assets
+          path: |
+            ${{ steps.version.outputs.binary }}
+            ${{ steps.version.outputs.deb }}
+            ${{ steps.version.outputs.aur_src }}
+            checksums.txt
+            RELEASE_NOTES.md
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: |
+            ${{ steps.version.outputs.binary }}
+            ${{ steps.version.outputs.deb }}
+            ${{ steps.version.outputs.aur_src }}
+            checksums.txt
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '.dev') }}
+
+      - name: Check AUR publish configuration
+        id: aur_publish
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          AUR_COMMIT_USER: ${{ secrets.AUR_COMMIT_USER }}
+          AUR_COMMIT_EMAIL: ${{ secrets.AUR_COMMIT_EMAIL }}
+        run: |
+          if [[ "$VERSION" == *.dev ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "AUR publishing skipped for prerelease version: $VERSION"
+          elif [[ -n "$AUR_SSH_PRIVATE_KEY" && -n "$AUR_COMMIT_USER" && -n "$AUR_COMMIT_EMAIL" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "AUR publishing skipped: configure AUR_SSH_PRIVATE_KEY, AUR_COMMIT_USER, and AUR_COMMIT_EMAIL to enable it."
+          fi
+
+      - name: Publish to AUR
+        if: steps.aur_publish.outputs.enabled == 'true'
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          AUR_COMMIT_USER: ${{ secrets.AUR_COMMIT_USER }}
+          AUR_COMMIT_EMAIL: ${{ secrets.AUR_COMMIT_EMAIL }}
+        run: |
+          install -dm700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+
+          cat > ~/.ssh/config <<'EOF'
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          EOF
+          chmod 600 ~/.ssh/config
+
+          git config --global user.name "$AUR_COMMIT_USER"
+          git config --global user.email "$AUR_COMMIT_EMAIL"
+
+          AUR_REMOTE="ssh://aur@aur.archlinux.org/mebtty.git"
+          if ! git clone "$AUR_REMOTE" aur-repo; then
+            mkdir aur-repo
+            git -C aur-repo init
+            git -C aur-repo remote add origin "$AUR_REMOTE"
+          fi
+
+          cp aur-package/PKGBUILD aur-package/.SRCINFO aur-package/mebtty.install aur-package/mebtty.tmpfiles aur-repo/
+          rm -f aur-repo/mebtty.sysusers aur-repo/mebtty-pty-helper.c
+          git -C aur-repo add PKGBUILD .SRCINFO mebtty.install mebtty.tmpfiles
+          git -C aur-repo add -u mebtty.sysusers mebtty-pty-helper.c || true
+
+          if git -C aur-repo diff --cached --quiet; then
+            echo "AUR package is already up to date."
+            exit 0
+          fi
+
+          git -C aur-repo commit -m "Update to ${GITHUB_REF_NAME}"
+          git -C aur-repo push origin HEAD:master
