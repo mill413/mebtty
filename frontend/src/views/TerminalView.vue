@@ -145,6 +145,7 @@ watch(
   [
     () => terminalStore.activeTab,
     () => terminalStore.activeTab?.cwd,
+    () => terminalStore.activeTab?.username,
     () => settingsStore.tabTitleFormat
   ],
   ([tab]) => {
@@ -213,6 +214,12 @@ function handleConnectionChange(status) {
 function handleCwdChange({ sessionId, cwd }) {
   if (sessionId && cwd) {
     terminalStore.updateTabCwd(sessionId, cwd)
+  }
+}
+
+function handleRuntimeStatus(status) {
+  if (status.sessionId) {
+    terminalStore.updateTabRuntimeStatus(status.sessionId, status)
   }
 }
 
@@ -387,6 +394,7 @@ function logout() {
             @resize="handleResize"
             @connection-change="handleConnectionChange"
             @cwd-change="handleCwdChange"
+            @status-change="handleRuntimeStatus"
           />
         </KeepAlive>
         <!-- Welcome / empty state -->

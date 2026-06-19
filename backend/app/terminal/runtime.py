@@ -28,6 +28,9 @@ class Runtime(ABC):
     @abstractmethod
     def current_cwd(self) -> str | None: ...
 
+    def current_username(self) -> str | None:
+        return None
+
     @property
     @abstractmethod
     def is_alive(self) -> bool: ...

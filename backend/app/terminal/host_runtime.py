@@ -20,6 +20,7 @@ class HostRuntime(Runtime):
     def __init__(self) -> None:
         self._master_fd: int | None = None
         self._pid: int | None = None
+        self._username: str | None = None
         self._alive: bool = False
         self._read_queue: asyncio.Queue[bytes | None] = asyncio.Queue()
         self._read_task: asyncio.Task | None = None
@@ -40,6 +41,7 @@ class HostRuntime(Runtime):
             username = getpass.getuser()
         except Exception:
             username = os.environ.get("USER", "user")
+        self._username = username
         home = os.environ.get("HOME", pwd.getpwuid(os.getuid()).pw_dir)
 
         child_env = os.environ.copy()
@@ -201,6 +203,16 @@ class HostRuntime(Runtime):
         except OSError:
             return None
 
+    def current_username(self) -> str | None:
+        foreground_pgid = self._foreground_pgid()
+        if foreground_pgid is not None:
+            foreground_pid = self._pid_for_group(foreground_pgid)
+            if foreground_pid is not None:
+                username = self._username_for_pid(foreground_pid)
+                if username:
+                    return username
+        return self._username
+
     @property
     def is_alive(self) -> bool:
         if not self._alive or self._pid is None:
@@ -214,6 +226,56 @@ class HostRuntime(Runtime):
         except ChildProcessError:
             self._alive = False
             return False
+
+    def _foreground_pgid(self) -> int | None:
+        if self._master_fd is None:
+            return None
+        try:
+            pgid = os.tcgetpgrp(self._master_fd)
+            return pgid if pgid > 0 else None
+        except OSError:
+            return None
+
+    def _pid_for_group(self, pgid: int) -> int | None:
+        candidates: list[tuple[bool, int, int]] = []
+        try:
+            proc_entries = os.listdir("/proc")
+        except OSError:
+            return None
+
+        for entry in proc_entries:
+            if not entry.isdigit():
+                continue
+            pid = int(entry)
+            stat = self._process_stat(pid)
+            if stat is None or stat["pgrp"] != pgid:
+                continue
+            candidates.append((pid == self._pid, stat["start_time"], pid))
+
+        if not candidates:
+            return None
+
+        candidates.sort(key=lambda item: (item[0], -item[1]))
+        return candidates[0][2]
+
+    def _process_stat(self, pid: int) -> dict[str, int] | None:
+        try:
+            with open(f"/proc/{pid}/stat", "r", encoding="utf-8") as stat_file:
+                text = stat_file.read()
+            fields = text.rsplit(")", 1)[1].strip().split()
+            return {
+                "pgrp": int(fields[2]),
+                "start_time": int(fields[19]),
+            }
+        except (OSError, IndexError, ValueError):
+            return None
+
+    def _username_for_pid(self, pid: int) -> str | None:
+        try:
+            uid = os.stat(f"/proc/{pid}").st_uid
+            return pwd.getpwuid(uid).pw_name
+        except (OSError, KeyError):
+            return None
 
     def _set_winsize(self, cols: int, rows: int) -> None:
         if self._master_fd is None:

@@ -1,5 +1,5 @@
 export class TerminalWebSocket {
-  constructor(sessionId, terminal, { onConnect, onDisconnect, onCwdChange } = {}) {
+  constructor(sessionId, terminal, { onConnect, onDisconnect, onCwdChange, onStatusChange } = {}) {
     this.sessionId = sessionId
     this.terminal = terminal
     this.ws = null
@@ -9,6 +9,7 @@ export class TerminalWebSocket {
     this.onConnect = onConnect
     this.onDisconnect = onDisconnect
     this.onCwdChange = onCwdChange
+    this.onStatusChange = onStatusChange
   }
 
   connect() {
@@ -47,6 +48,13 @@ export class TerminalWebSocket {
           break
         case 0x07: // CWD
           this.onCwdChange?.(new TextDecoder().decode(payload))
+          break
+        case 0x08: // STATUS
+          try {
+            this.onStatusChange?.(JSON.parse(new TextDecoder().decode(payload)))
+          } catch {
+            // Ignore malformed status payloads.
+          }
           break
       }
     }

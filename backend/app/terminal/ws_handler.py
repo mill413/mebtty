@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import struct
 
@@ -16,6 +17,7 @@ OPCODE_HEARTBEAT = 0x04
 OPCODE_CLOSE = 0x05
 OPCODE_ERROR = 0x06
 OPCODE_CWD = 0x07
+OPCODE_STATUS = 0x08
 
 
 def encode_packet(opcode: int, payload: bytes) -> bytes:
@@ -59,13 +61,13 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
     writer_task = asyncio.create_task(
         _websocket_reader(websocket, runtime, session_id)
     )
-    cwd_task = asyncio.create_task(
-        _cwd_watcher(websocket, runtime, session_id)
+    status_task = asyncio.create_task(
+        _status_watcher(websocket, runtime, session_id)
     )
 
     try:
         done, pending = await asyncio.wait(
-            [reader_task, writer_task, cwd_task],
+            [reader_task, writer_task, status_task],
             return_when=asyncio.FIRST_COMPLETED,
         )
         # Cancel the other task
@@ -85,7 +87,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
         logger.exception("Error in WebSocket handler for session '%s'", session_id)
     finally:
         # Cancel remaining tasks just in case
-        for task in [reader_task, writer_task, cwd_task]:
+        for task in [reader_task, writer_task, status_task]:
             if not task.done():
                 task.cancel()
                 try:
@@ -126,8 +128,9 @@ async def _runtime_reader(websocket: WebSocket, runtime, session_id: str) -> Non
         )
 
 
-async def _cwd_watcher(websocket: WebSocket, runtime, session_id: str) -> None:
+async def _status_watcher(websocket: WebSocket, runtime, session_id: str) -> None:
     last_cwd: str | None = None
+    last_status: dict[str, str] | None = None
     try:
         while runtime.is_alive:
             cwd = runtime.current_cwd()
@@ -136,13 +139,25 @@ async def _cwd_watcher(websocket: WebSocket, runtime, session_id: str) -> None:
                 packet = encode_packet(OPCODE_CWD, cwd.encode("utf-8"))
                 await websocket.send_bytes(packet)
                 await _persist_session_cwd(session_id, cwd)
+
+            status = {
+                "cwd": cwd or "",
+                "username": runtime.current_username() or "",
+            }
+            if status != last_status:
+                last_status = status
+                packet = encode_packet(
+                    OPCODE_STATUS,
+                    json.dumps(status, separators=(",", ":")).encode("utf-8"),
+                )
+                await websocket.send_bytes(packet)
             await asyncio.sleep(1)
     except WebSocketDisconnect:
-        logger.info("WebSocket disconnected while watching cwd for session '%s'", session_id)
+        logger.info("WebSocket disconnected while watching status for session '%s'", session_id)
     except asyncio.CancelledError:
         raise
     except Exception:
-        logger.exception("Error watching cwd for session '%s'", session_id)
+        logger.exception("Error watching status for session '%s'", session_id)
 
 
 async def _persist_session_cwd(session_id: str, cwd: str) -> None:
