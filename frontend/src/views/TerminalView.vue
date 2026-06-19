@@ -198,6 +198,10 @@ function handleTabRename(tabId, title) {
   terminalStore.renameTab(tabId, title)
 }
 
+function handleTabIconChange(tabId, icon) {
+  terminalStore.setTabIcon(tabId, icon)
+}
+
 function handleResize(dims) {
   terminalDims.value = dims
 }
@@ -286,6 +290,7 @@ function logout() {
           @switch="handleTabSwitch"
           @close="handleTabClose"
           @rename="handleTabRename"
+          @icon-change="handleTabIconChange"
           @new-tab="handleNewTerminal"
         />
       </div>

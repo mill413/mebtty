@@ -35,6 +35,7 @@ export const useTerminalStore = defineStore('terminal', {
         shell: shell,
         cwd: cwd || data.cwd || '',
         username: data.username || '',
+        iconOverride: null,
         status: 'running'
       })
       this.activeTabId = tabId
@@ -131,6 +132,7 @@ export const useTerminalStore = defineStore('terminal', {
         shell: shell || '/bin/bash',
         cwd,
         username,
+        iconOverride: null,
         status: 'running'
       })
       this.activeTabId = tabId
@@ -148,6 +150,11 @@ export const useTerminalStore = defineStore('terminal', {
 
       const session = this.sessions.find((s) => s.id === sessionId)
       if (session) session.cwd = cwd
+    },
+
+    setTabIcon(tabId, icon) {
+      const tab = this.tabs.find((t) => t.id === tabId)
+      if (tab) tab.iconOverride = icon || null
     },
 
     async fetchSessions() {

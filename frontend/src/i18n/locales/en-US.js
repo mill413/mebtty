@@ -73,7 +73,12 @@ export default {
   },
   tabs: {
     close: 'Close',
-    newTerminal: 'New Terminal'
+    newTerminal: 'New Terminal',
+    rename: 'Rename',
+    icon: 'Icon',
+    changeIcon: 'Change Icon...',
+    searchIcon: 'Search icons',
+    noIcons: 'No icons found'
   },
   fileBrowser: {
     explorer: 'EXPLORER',

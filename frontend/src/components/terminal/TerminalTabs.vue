@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '../../stores/settings'
 
@@ -10,13 +10,95 @@ const props = defineProps({
   activeTabId: { type: Number, default: null }
 })
 
-const emit = defineEmits(['switch', 'close', 'rename', 'new-tab'])
+const emit = defineEmits(['switch', 'close', 'rename', 'icon-change', 'new-tab'])
 
 const { t } = useI18n()
 
 const editingTabId = ref(null)
 const editingTitle = ref('')
 const dragTabId = ref(null)
+const contextMenu = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  tab: null
+})
+const iconPicker = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  tab: null,
+  query: ''
+})
+
+const iconModules = import.meta.glob('/public/catppuccin-icons/*.svg', {
+  eager: true,
+  query: '?url',
+  import: 'default'
+})
+
+const preferredIconNames = [
+  'bash',
+  'robots',
+  'adobe-ai',
+  'code-climate',
+  'powershell',
+  'vim',
+  'vscode',
+  'cursor',
+  'git',
+  'docker',
+  'python',
+  'javascript',
+  'typescript',
+  'vue',
+  'go',
+  'rust',
+  'database',
+  'config',
+  'text'
+]
+
+const iconOptions = Object.entries(iconModules)
+  .map(([path, src]) => {
+    const name = path.split('/').pop().replace(/\.svg$/, '')
+    return {
+      name,
+      label: formatIconLabel(name),
+      src,
+      searchText: name.replace(/[-_]/g, ' ')
+    }
+  })
+  .sort((a, b) => {
+    const aPreferred = preferredIconNames.indexOf(a.name)
+    const bPreferred = preferredIconNames.indexOf(b.name)
+    if (aPreferred !== -1 || bPreferred !== -1) {
+      if (aPreferred === -1) return 1
+      if (bPreferred === -1) return -1
+      return aPreferred - bPreferred
+    }
+    return a.label.localeCompare(b.label)
+  })
+
+function formatIconLabel(name) {
+  return name
+    .replace(/^_/, '')
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+const filteredIconOptions = computed(() => {
+  const query = iconPicker.value.query.trim().toLowerCase()
+  if (!query) return iconOptions
+  return iconOptions.filter((icon) => {
+    const searchable = [
+      icon.name,
+      icon.label,
+      icon.searchText
+    ].join(' ').toLowerCase()
+    return searchable.includes(query)
+  })
+})
 
 function handleClick(tabId) {
   if (editingTabId.value !== null) return
@@ -29,8 +111,15 @@ function handleClose(tabId, event) {
 }
 
 function handleDblClick(tabId, currentTitle) {
+  startRename(tabId, currentTitle)
+}
+
+function startRename(tabId, currentTitle) {
   editingTabId.value = tabId
   editingTitle.value = currentTitle
+  nextTick(() => {
+    document.querySelector('.tab-rename-input')?.focus()
+  })
 }
 
 function finishRename(tabId) {
@@ -72,6 +161,57 @@ function isSettingsTab(tab) {
   return tab.type === 'settings'
 }
 
+function handleContextMenu(event, tab) {
+  if (isSettingsTab(tab)) return
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    tab
+  }
+}
+
+function closeContextMenu() {
+  contextMenu.value.visible = false
+  contextMenu.value.tab = null
+}
+
+function closeIconPicker() {
+  iconPicker.value.visible = false
+  iconPicker.value.tab = null
+  iconPicker.value.query = ''
+}
+
+function renameFromContextMenu() {
+  const tab = contextMenu.value.tab
+  if (!tab) return
+  startRename(tab.id, tab.title)
+  closeContextMenu()
+}
+
+function openIconPickerFromContextMenu() {
+  const tab = contextMenu.value.tab
+  if (!tab) return
+  iconPicker.value = {
+    visible: true,
+    x: contextMenu.value.x,
+    y: contextMenu.value.y,
+    tab,
+    query: ''
+  }
+  closeContextMenu()
+  nextTick(() => {
+    document.querySelector('.tab-icon-search')?.focus()
+  })
+}
+
+function chooseIcon(icon) {
+  const tab = iconPicker.value.tab
+  if (!tab) return
+  emit('icon-change', tab.id, icon.name)
+  closeIconPicker()
+}
+
 function getTabDisplayTitle(tab) {
   if (tab.type === 'settings') return t('settings.title')
   const index = props.tabs.indexOf(tab) + 1
@@ -85,14 +225,64 @@ function getTabDisplayTitle(tab) {
   )
 }
 
-function getShellIcon(shell) {
-    if (!shell) return '>'
-    const s = shell.toLowerCase()
-  if (s.includes('zsh')) return '%'
-  if (s.includes('fish')) return '>'
-  if (s.includes('bash')) return '$'
-  return '>'
+function getShellIconName(shell) {
+  if (!shell) return ''
+  const s = shell.toLowerCase()
+  if (s.includes('bash')) return 'bash'
+  if (s.includes('powershell') || s.includes('pwsh')) return 'powershell'
+  return ''
 }
+
+function getFallbackGlyph(tab) {
+  const shell = (tab.shell || '').toLowerCase()
+  if (shell.includes('zsh')) return '%'
+  if (shell.includes('fish') || shell.includes('nu')) return '>'
+  return '$'
+}
+
+function getIconSource(iconName) {
+  if (!iconName) return ''
+  const option = iconOptions.find((icon) => icon.name === iconName)
+  return option?.src || `/catppuccin-icons/${iconName}.svg`
+}
+
+function getTabIcon(tab) {
+  const iconName = tab.iconOverride || getShellIconName(tab.shell)
+  if (iconName) {
+    return {
+      type: 'image',
+      src: getIconSource(iconName),
+      label: iconName
+    }
+  }
+  return {
+    type: 'glyph',
+    glyph: getFallbackGlyph(tab),
+    label: tab.shell || 'terminal'
+  }
+}
+
+function handleGlobalClick() {
+  closeContextMenu()
+  closeIconPicker()
+}
+
+function handleGlobalKeydown(event) {
+  if (event.key === 'Escape') {
+    closeContextMenu()
+    closeIconPicker()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('click', handleGlobalClick)
+  window.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleGlobalClick)
+  window.removeEventListener('keydown', handleGlobalKeydown)
+})
 </script>
 
 <template>
@@ -106,6 +296,7 @@ function getShellIcon(shell) {
         :draggable="!isSettingsTab(tab)"
         @click="handleClick(tab.id)"
         @dblclick="!isSettingsTab(tab) && handleDblClick(tab.id, tab.title)"
+        @contextmenu.prevent="handleContextMenu($event, tab)"
         @dragstart="!isSettingsTab(tab) && handleDragStart(tab.id, $event)"
         @dragover="handleDragOver"
         @drop="handleDrop(tab.id, $event)"
@@ -119,7 +310,15 @@ function getShellIcon(shell) {
           </svg>
         </span>
         <!-- Shell tab icon -->
-        <span v-else class="tab-icon">{{ getShellIcon(tab.shell) }}</span>
+        <span v-else class="tab-icon">
+          <img
+            v-if="getTabIcon(tab).type === 'image'"
+            class="tab-icon-img"
+            :src="getTabIcon(tab).src"
+            :alt="getTabIcon(tab).label"
+          />
+          <span v-else>{{ getTabIcon(tab).glyph }}</span>
+        </span>
 
         <input
           v-if="editingTabId === tab.id && !isSettingsTab(tab)"
@@ -149,6 +348,62 @@ function getShellIcon(shell) {
         </button>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="contextMenu.visible"
+        class="tab-context-menu"
+        :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+        @click.stop
+        @contextmenu.prevent
+      >
+        <button class="tab-context-item" @click="renameFromContextMenu">
+          <span class="tab-context-icon">T</span>
+          <span>{{ t('tabs.rename') }}</span>
+        </button>
+        <button class="tab-context-item" @click="openIconPickerFromContextMenu">
+          <span class="tab-context-icon">
+            <img class="tab-context-icon-img" src="/catppuccin-icons/vscode.svg" alt="" />
+          </span>
+          <span>{{ t('tabs.changeIcon') }}</span>
+        </button>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="iconPicker.visible"
+        class="tab-icon-picker"
+        :style="{ left: `${iconPicker.x}px`, top: `${iconPicker.y}px` }"
+        @click.stop
+        @contextmenu.prevent
+      >
+        <div class="tab-icon-picker-header">
+          <input
+            v-model="iconPicker.query"
+            class="tab-icon-search"
+            type="text"
+            :placeholder="t('tabs.searchIcon')"
+          />
+        </div>
+        <div class="tab-icon-grid">
+          <button
+            v-for="icon in filteredIconOptions"
+            :key="icon.name"
+            class="tab-icon-option"
+            :class="{ active: iconPicker.tab?.iconOverride === icon.name }"
+            @click="chooseIcon(icon)"
+            :title="icon.label"
+          >
+            <img class="tab-icon-option-img" :src="getIconSource(icon.name)" :alt="icon.label" />
+            <span>{{ icon.label }}</span>
+          </button>
+          <div v-if="filteredIconOptions.length === 0" class="tab-icon-empty">
+            {{ t('tabs.noIcons') }}
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -158,7 +413,7 @@ function getShellIcon(shell) {
   align-items: flex-end;
   height: 100%;
   background: var(--bg-deep);
-  overflow: visible;
+  overflow: hidden;
   position: relative;
 }
 
@@ -168,11 +423,22 @@ function getShellIcon(shell) {
   gap: 3px;
   padding: 0 4px 0 16px;
   overflow-x: auto;
-  scrollbar-width: none;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--overlay) transparent;
 }
 
 .tabs-scroll::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+
+.tabs-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabs-scroll::-webkit-scrollbar-thumb {
+  background: var(--overlay);
+  border-radius: 999px;
 }
 
 .tab {
@@ -230,10 +496,21 @@ function getShellIcon(shell) {
 }
 
 .tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--accent);
-  flex-shrink: 0;
+}
+
+.tab-icon-img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .tab-icon-settings {
@@ -310,6 +587,165 @@ function getShellIcon(shell) {
 .tab-new:hover {
   background: var(--surface);
   color: var(--text);
+}
+
+.tab-context-menu {
+  position: fixed;
+  min-width: 176px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px;
+  z-index: 9999;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.tab-context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.tab-context-item:hover,
+.tab-context-item.active {
+  background: var(--overlay);
+}
+
+.tab-context-item.active {
+  color: var(--accent);
+}
+
+.tab-context-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  width: 18px;
+  height: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  text-align: center;
+}
+
+.tab-context-icon-img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.tab-context-divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border);
+}
+
+.tab-context-label {
+  padding: 4px 9px 3px;
+  color: var(--subtext);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.tab-icon-picker {
+  position: fixed;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(440px, calc(100vh - 24px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  z-index: 10000;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.3);
+}
+
+.tab-icon-picker-header {
+  margin-bottom: 8px;
+}
+
+.tab-icon-search {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+
+.tab-icon-search:focus {
+  border-color: var(--accent);
+}
+
+.tab-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 4px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.tab-icon-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 68px;
+  padding: 8px 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.tab-icon-option:hover,
+.tab-icon-option.active {
+  background: var(--overlay);
+  border-color: var(--border);
+}
+
+.tab-icon-option.active {
+  border-color: var(--accent);
+}
+
+.tab-icon-option-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.tab-icon-option span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--subtext);
+}
+
+.tab-icon-empty {
+  grid-column: 1 / -1;
+  padding: 18px 8px;
+  color: var(--subtext);
+  font-size: 12px;
+  text-align: center;
 }
 
 </style>

@@ -73,7 +73,12 @@ export default {
   },
   tabs: {
     close: '關閉',
-    newTerminal: '新建終端機'
+    newTerminal: '新建終端機',
+    rename: '重新命名',
+    icon: '圖示',
+    changeIcon: '更改圖示...',
+    searchIcon: '搜尋圖示',
+    noIcons: '找不到圖示'
   },
   fileBrowser: {
     explorer: '檔案總管',

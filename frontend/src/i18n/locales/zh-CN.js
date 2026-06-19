@@ -73,7 +73,12 @@ export default {
   },
   tabs: {
     close: '关闭',
-    newTerminal: '新建终端'
+    newTerminal: '新建终端',
+    rename: '重命名',
+    icon: '图标',
+    changeIcon: '更改图标...',
+    searchIcon: '搜索图标',
+    noIcons: '没有找到图标'
   },
   fileBrowser: {
     explorer: '资源管理器',

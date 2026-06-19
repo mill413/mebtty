@@ -73,7 +73,12 @@ export default {
   },
   tabs: {
     close: '閉じる',
-    newTerminal: '新しいターミナル'
+    newTerminal: '新しいターミナル',
+    rename: '名前を変更',
+    icon: 'アイコン',
+    changeIcon: 'アイコンを変更...',
+    searchIcon: 'アイコンを検索',
+    noIcons: 'アイコンが見つかりません'
   },
   fileBrowser: {
     explorer: 'エクスプローラー',
