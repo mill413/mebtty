@@ -1,11 +1,19 @@
+import api from './api'
+
 export class TerminalWebSocket {
   constructor(sessionId, terminal, { onConnect, onDisconnect, onCwdChange, onStatusChange } = {}) {
     this.sessionId = sessionId
     this.terminal = terminal
     this.ws = null
     this.heartbeatInterval = null
+    this.heartbeatTimeout = null
+    this.reconnectTimer = null
+    this.reconnectAttempts = 0
     this.inputDisposable = null
     this.connected = false
+    this.intentionalClose = false
+    this.serverClosed = false
+    this.hadError = false
     this.onConnect = onConnect
     this.onDisconnect = onDisconnect
     this.onCwdChange = onCwdChange
@@ -13,19 +21,28 @@ export class TerminalWebSocket {
   }
 
   connect() {
+    this.intentionalClose = false
+    this.serverClosed = false
+    this.hadError = false
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/api/terminal/ws/${this.sessionId}`
-    this.ws = new WebSocket(wsUrl)
-    this.ws.binaryType = 'arraybuffer'
+    const ws = new WebSocket(wsUrl)
+    this.ws = ws
+    ws.binaryType = 'arraybuffer'
 
-    this.ws.onopen = () => {
+    ws.onopen = () => {
+      if (this.ws !== ws) return
       this.connected = true
+      this.reconnectAttempts = 0
+      this.clearReconnectTimer()
       this.startHeartbeat()
       this.setupTerminalInput()
       this.onConnect?.()
     }
 
-    this.ws.onmessage = (event) => {
+    ws.onmessage = (event) => {
+      if (this.ws !== ws) return
       const data = new Uint8Array(event.data)
       if (data.length < 5) return
 
@@ -38,10 +55,12 @@ export class TerminalWebSocket {
           this.terminal.write(payload)
           break
         case 0x04: // HEARTBEAT response
+          this.clearHeartbeatTimeout()
           break
         case 0x05: // CLOSE
           this.terminal.write('\r\n[Session closed by server]\r\n')
           this.connected = false
+          this.serverClosed = true
           break
         case 0x06: // ERROR
           this.terminal.write(`\r\n\x1b[31m[Error] ${new TextDecoder().decode(payload)}\x1b[0m\r\n`)
@@ -59,21 +78,28 @@ export class TerminalWebSocket {
       }
     }
 
-    this.ws.onclose = () => {
+    ws.onclose = () => {
+      if (this.ws !== ws) return
       const wasConnected = this.connected
       this.connected = false
       this.stopHeartbeat()
-      this.terminal.write('\r\n\x1b[90m[Connection closed]\x1b[0m\r\n')
       if (wasConnected) this.onDisconnect?.()
+      if (!this.intentionalClose && !this.serverClosed) {
+        this.scheduleReconnect()
+      } else if (!this.intentionalClose && !this.hadError) {
+        this.terminal.write('\r\n\x1b[90m[Connection closed]\x1b[0m\r\n')
+      }
     }
 
-    this.ws.onerror = () => {
+    ws.onerror = () => {
+      if (this.ws !== ws) return
       this.connected = false
-      this.terminal.write('\r\n\x1b[31m[Connection error]\x1b[0m\r\n')
+      this.hadError = true
     }
   }
 
   setupTerminalInput() {
+    if (this.inputDisposable) return
     this.inputDisposable = this.terminal.onData((data) => {
       this.sendPacket(0x01, new TextEncoder().encode(data))
     })
@@ -100,9 +126,25 @@ export class TerminalWebSocket {
   }
 
   startHeartbeat() {
+    this.stopHeartbeat()
     this.heartbeatInterval = setInterval(() => {
-      this.sendPacket(0x04, new Uint8Array(0))
-    }, 30000)
+      this.sendHeartbeat()
+    }, 15000)
+    this.sendHeartbeat()
+  }
+
+  sendHeartbeat() {
+    if (this.ws?.readyState !== WebSocket.OPEN) return
+    if (this.heartbeatTimeout) {
+      this.reconnectNow()
+      return
+    }
+
+    this.sendPacket(0x04, new Uint8Array(0))
+    this.heartbeatTimeout = setTimeout(() => {
+      this.heartbeatTimeout = null
+      this.reconnectNow()
+    }, 10000)
   }
 
   stopHeartbeat() {
@@ -110,9 +152,65 @@ export class TerminalWebSocket {
       clearInterval(this.heartbeatInterval)
       this.heartbeatInterval = null
     }
+    this.clearHeartbeatTimeout()
+  }
+
+  clearHeartbeatTimeout() {
+    if (this.heartbeatTimeout) {
+      clearTimeout(this.heartbeatTimeout)
+      this.heartbeatTimeout = null
+    }
+  }
+
+  clearReconnectTimer() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+  }
+
+  reconnectNow() {
+    if (this.intentionalClose) return
+    const wasConnected = this.connected
+    this.connected = false
+    this.stopHeartbeat()
+    if (wasConnected) this.onDisconnect?.()
+    try {
+      this.ws?.close()
+    } catch {}
+    this.scheduleReconnect(0)
+  }
+
+  scheduleReconnect(delay = null) {
+    if (this.intentionalClose || this.reconnectTimer) return
+
+    const reconnectDelay = delay ?? Math.min(1000 * 2 ** this.reconnectAttempts, 10000)
+    this.reconnectAttempts += 1
+
+    if (this.reconnectAttempts === 1) {
+      this.terminal.write('\r\n\x1b[90m[Connection lost, reconnecting...]\x1b[0m\r\n')
+    }
+
+    this.reconnectTimer = setTimeout(async () => {
+      this.reconnectTimer = null
+      if (this.intentionalClose) return
+
+      try {
+        await api.post(`/api/sessions/${this.sessionId}/reconnect`)
+        this.connect()
+      } catch (error) {
+        if (error?.response?.status === 401 || error?.response?.status === 403 || error?.response?.status === 404) {
+          this.terminal.write('\r\n\x1b[31m[Unable to reconnect terminal]\x1b[0m\r\n')
+          return
+        }
+        this.scheduleReconnect()
+      }
+    }, reconnectDelay)
   }
 
   disconnect() {
+    this.intentionalClose = true
+    this.clearReconnectTimer()
     this.stopHeartbeat()
     if (this.inputDisposable) {
       this.inputDisposable.dispose()
