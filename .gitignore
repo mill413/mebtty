@@ -42,7 +42,10 @@ Thumbs.db
 
 # Runtime
 .mebtty.pid
+.mebtty-dev-backend.pid
+.mebtty-dev-frontend.pid
 backend/data/
+backend/.dev/
 backend/uploads/
 
 # Debian packages

@@ -10,9 +10,11 @@
 #   ./deploy.sh --status     # Check server status
 #   ./deploy.sh --logs       # Tail server logs
 #   ./deploy.sh --update     # Pull latest code and redeploy
+#   ./deploy.sh --dev        # Start local hot-reload dev servers
 #
 # Short options: -D (docker), -K (docker-stop), -s (stop),
-#                -r (restart), -t (status), -l (logs), -u (update)
+#                -r (restart), -t (status), -l (logs), -u (update),
+#                -d (dev)
 #
 set -euo pipefail
 
@@ -23,7 +25,11 @@ VENV_DIR="$BACKEND_DIR/venv"
 DATA_DIR="$BACKEND_DIR/data"
 ENV_FILE="$SCRIPT_DIR/.env"
 PID_FILE="$SCRIPT_DIR/.mebtty.pid"
+DEV_BACKEND_PID_FILE="$SCRIPT_DIR/.mebtty-dev-backend.pid"
+DEV_FRONTEND_PID_FILE="$SCRIPT_DIR/.mebtty-dev-frontend.pid"
 LOG_FILE="$SCRIPT_DIR/mebtty.log"
+DEV_BACKEND_LOG_FILE="$SCRIPT_DIR/mebtty-dev-backend.log"
+DEV_FRONTEND_LOG_FILE="$SCRIPT_DIR/mebtty-dev-frontend.log"
 
 # Load .env file if exists
 if [[ -f "$ENV_FILE" ]]; then
@@ -35,6 +41,8 @@ fi
 
 HOST="${MEBTTY_HOST:-0.0.0.0}"
 PORT="${MEBTTY_PORT:-18888}"
+DEV_FRONTEND_HOST="${MEBTTY_DEV_FRONTEND_HOST:-127.0.0.1}"
+DEV_FRONTEND_PORT="${MEBTTY_DEV_FRONTEND_PORT:-3000}"
 
 # Required minimum versions
 MIN_PYTHON_MAJOR=3
@@ -67,9 +75,30 @@ is_server_running() {
     return 1
 }
 
+is_pid_file_running() {
+    local pid_file="$1"
+    if [[ -f "$pid_file" ]]; then
+        local pid
+        pid=$(cat "$pid_file")
+        if kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 get_server_pid() {
     if [[ -f "$PID_FILE" ]]; then
         cat "$PID_FILE"
+    else
+        echo ""
+    fi
+}
+
+get_pid_from_file() {
+    local pid_file="$1"
+    if [[ -f "$pid_file" ]]; then
+        cat "$pid_file"
     else
         echo ""
     fi
@@ -88,16 +117,21 @@ wait_for_health() {
 }
 
 check_port_available() {
+    check_tcp_port_available "$PORT"
+}
+
+check_tcp_port_available() {
+    local port="$1"
     if command -v ss >/dev/null 2>&1; then
-        if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
+        if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
             return 1
         fi
     elif command -v lsof >/dev/null 2>&1; then
-        if lsof -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+        if lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
             return 1
         fi
     elif command -v netstat >/dev/null 2>&1; then
-        if netstat -tlnp 2>/dev/null | grep -q ":${PORT} "; then
+        if netstat -tlnp 2>/dev/null | grep -q ":${port} "; then
             return 1
         fi
     fi
@@ -160,6 +194,9 @@ stop_deployments() {
     if stop_local_server_if_present; then
         stopped=1
     fi
+    if stop_dev_servers_if_present; then
+        stopped=1
+    fi
     if stop_docker_deployment_if_running; then
         stopped=1
     fi
@@ -177,6 +214,7 @@ check_deps() {
     command -v node    >/dev/null 2>&1 || missing+=(node)
     command -v npm     >/dev/null 2>&1 || missing+=(npm)
     command -v curl    >/dev/null 2>&1 || missing+=(curl)
+    command -v setsid  >/dev/null 2>&1 || missing+=(setsid)
     if [[ ${#missing[@]} -gt 0 ]]; then
         err "Missing required tools: ${missing[*]}"
         err "Please install them and try again."
@@ -236,6 +274,14 @@ setup_backend() {
     mkdir -p "$DATA_DIR" "$BACKEND_DIR/uploads"
 }
 
+setup_frontend_dev() {
+    cd "$FRONTEND_DIR"
+    if [[ ! -d node_modules ]]; then
+        log "Installing frontend dependencies..."
+        npm install
+    fi
+}
+
 start_server() {
     cd "$BACKEND_DIR"
     # shellcheck source=/dev/null
@@ -274,7 +320,7 @@ start_server() {
     dim "  Frontend: $MEBTTY_STATIC_DIR"
     dim "  Database: $MEBTTY_DATABASE_URL"
 
-    nohup python3 -m uvicorn app.main:app \
+    nohup setsid python3 -m uvicorn app.main:app \
         --host "$HOST" \
         --port "$PORT" \
         >> "$LOG_FILE" 2>&1 &
@@ -307,6 +353,112 @@ start_server() {
             exit 1
         fi
     fi
+}
+
+stop_process_from_pid_file() {
+    local pid_file="$1"
+    local name="$2"
+
+    if is_pid_file_running "$pid_file"; then
+        local pid
+        pid=$(get_pid_from_file "$pid_file")
+        log "Stopping $name (PID: $pid)..."
+        pkill -P "$pid" 2>/dev/null || true
+        kill "$pid" 2>/dev/null || true
+        for ((i = 1; i <= 5; i++)); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+                break
+            fi
+            sleep 1
+        done
+        if kill -0 "$pid" 2>/dev/null; then
+            warn "$name did not stop gracefully, force killing..."
+            kill -9 "$pid" 2>/dev/null || true
+            pkill -9 -P "$pid" 2>/dev/null || true
+        fi
+        log "$name stopped."
+        rm -f "$pid_file"
+        return 0
+    fi
+
+    if [[ -f "$pid_file" ]]; then
+        warn "$name was not running (stale PID file removed)."
+        rm -f "$pid_file"
+        return 0
+    fi
+
+    return 1
+}
+
+stop_dev_servers_if_present() {
+    local stopped=0
+    if stop_process_from_pid_file "$DEV_FRONTEND_PID_FILE" "frontend dev server"; then
+        stopped=1
+    fi
+    if stop_process_from_pid_file "$DEV_BACKEND_PID_FILE" "backend dev server"; then
+        stopped=1
+    fi
+    [[ "$stopped" -eq 1 ]]
+}
+
+start_dev_servers() {
+    check_deps
+    setup_backend
+    setup_frontend_dev
+    stop_docker_deployment_if_running || true
+    stop_local_server_if_present || true
+    stop_dev_servers_if_present || true
+
+    if ! check_tcp_port_available "$PORT"; then
+        err "Backend port $PORT is already in use. Set MEBTTY_PORT to a different port or stop the other process."
+        exit 1
+    fi
+    if ! check_tcp_port_available "$DEV_FRONTEND_PORT"; then
+        err "Frontend dev port $DEV_FRONTEND_PORT is already in use. Set MEBTTY_DEV_FRONTEND_PORT to a different port or stop the other process."
+        exit 1
+    fi
+
+    ensure_env_secret
+    export MEBTTY_DATABASE_URL="${MEBTTY_DATABASE_URL:-sqlite+aiosqlite:///$DATA_DIR/mebtty.db}"
+    export MEBTTY_UPLOAD_DIR="${MEBTTY_UPLOAD_DIR:-$BACKEND_DIR/uploads}"
+    export MEBTTY_STATIC_DIR=""
+    export MEBTTY_PORT="$PORT"
+    export MEBTTY_DEV_FRONTEND_PORT="$DEV_FRONTEND_PORT"
+
+    log "Starting backend dev server with reload on $HOST:$PORT..."
+    cd "$BACKEND_DIR"
+    # shellcheck source=/dev/null
+    source "$VENV_DIR/bin/activate"
+    nohup setsid python3 -m uvicorn app.main:app \
+        --host "$HOST" \
+        --port "$PORT" \
+        --reload \
+        >> "$DEV_BACKEND_LOG_FILE" 2>&1 &
+    echo $! > "$DEV_BACKEND_PID_FILE"
+
+    log "Starting frontend dev server on $DEV_FRONTEND_HOST:$DEV_FRONTEND_PORT..."
+    cd "$FRONTEND_DIR"
+    nohup setsid npm run dev -- \
+        --host "$DEV_FRONTEND_HOST" \
+        --port "$DEV_FRONTEND_PORT" \
+        >> "$DEV_FRONTEND_LOG_FILE" 2>&1 &
+    echo $! > "$DEV_FRONTEND_PID_FILE"
+
+    log "Waiting for backend health..."
+    if ! wait_for_health 20; then
+        warn "Backend health check timed out. Check logs with ./deploy.sh --logs"
+    fi
+
+    echo ""
+    echo -e "${CYAN}========================================${NC}"
+    echo -e "${CYAN}  MebTTY dev mode is running!${NC}"
+    echo -e "${CYAN}  Open:     http://localhost:$DEV_FRONTEND_PORT${NC}"
+    echo -e "${CYAN}  Backend:  http://localhost:$PORT${NC}"
+    echo -e "${CYAN}  Backend PID:  $(cat "$DEV_BACKEND_PID_FILE")${NC}"
+    echo -e "${CYAN}  Frontend PID: $(cat "$DEV_FRONTEND_PID_FILE")${NC}"
+    echo -e "${CYAN}  Logs:     ./deploy.sh --logs${NC}"
+    echo -e "${CYAN}  Stop:     ./deploy.sh --stop${NC}"
+    echo -e "${CYAN}========================================${NC}"
 }
 
 stop_server() {
@@ -351,7 +503,26 @@ stop_server() {
 }
 
 show_status() {
-    if is_server_running; then
+    if is_pid_file_running "$DEV_BACKEND_PID_FILE" || is_pid_file_running "$DEV_FRONTEND_PID_FILE"; then
+        echo -e "${GREEN}●${NC} MebTTY dev mode"
+        if is_pid_file_running "$DEV_BACKEND_PID_FILE"; then
+            echo -e "  Backend PID:  $(get_pid_from_file "$DEV_BACKEND_PID_FILE")"
+            echo -e "  Backend URL:  http://localhost:$PORT"
+            if curl -sf "http://localhost:$PORT/api/health" >/dev/null 2>&1; then
+                echo -e "  Backend:      ${GREEN}healthy${NC}"
+            else
+                echo -e "  Backend:      ${YELLOW}unreachable${NC}"
+            fi
+        else
+            echo -e "  Backend:      ${RED}stopped${NC}"
+        fi
+        if is_pid_file_running "$DEV_FRONTEND_PID_FILE"; then
+            echo -e "  Frontend PID: $(get_pid_from_file "$DEV_FRONTEND_PID_FILE")"
+            echo -e "  Frontend URL: http://localhost:$DEV_FRONTEND_PORT"
+        else
+            echo -e "  Frontend:     ${RED}stopped${NC}"
+        fi
+    elif is_server_running; then
         local pid
         pid=$(get_server_pid)
         echo -e "${GREEN}●${NC} MebTTY is running"
@@ -374,12 +545,19 @@ show_status() {
 }
 
 show_logs() {
-    if [[ ! -f "$LOG_FILE" ]]; then
+    if [[ -f "$DEV_BACKEND_LOG_FILE" || -f "$DEV_FRONTEND_LOG_FILE" ]]; then
+        log "Tailing dev logs (Ctrl+C to exit)..."
+        local logs=()
+        [[ -f "$DEV_BACKEND_LOG_FILE" ]] && logs+=("$DEV_BACKEND_LOG_FILE")
+        [[ -f "$DEV_FRONTEND_LOG_FILE" ]] && logs+=("$DEV_FRONTEND_LOG_FILE")
+        tail -f "${logs[@]}"
+    elif [[ ! -f "$LOG_FILE" ]]; then
         warn "No log file found at $LOG_FILE"
         exit 1
+    else
+        log "Tailing logs (Ctrl+C to exit)..."
+        tail -f "$LOG_FILE"
     fi
-    log "Tailing logs (Ctrl+C to exit)..."
-    tail -f "$LOG_FILE"
 }
 
 restart_server() {
@@ -466,6 +644,8 @@ print_help() {
     echo "  --status,     -t   Check if the server is running"
     echo "  --logs,       -l   Tail server logs"
     echo "  --update,     -u   Pull latest code and redeploy"
+    echo "  --dev,        -d   Start local hot-reload backend + frontend servers"
+    echo "  --local-test       Alias for --dev"
     echo "  --help,       -h   Show this help message"
     echo ""
     echo "Environment variables (or .env file):"
@@ -475,9 +655,12 @@ print_help() {
     echo "  MEBTTY_DATABASE_URL      Database URL           (default: SQLite in data/)"
     echo "  MEBTTY_UPLOAD_DIR        Upload directory       (default: ./uploads)"
     echo "  MEBTTY_MAX_UPLOAD_SIZE   Max upload size bytes  (default: 104857600)"
+    echo "  MEBTTY_DEV_FRONTEND_HOST Dev frontend host      (default: 127.0.0.1)"
+    echo "  MEBTTY_DEV_FRONTEND_PORT Dev frontend port      (default: 3000)"
     echo ""
     echo "Examples:"
     echo "  ./deploy.sh                        # Quick start"
+    echo "  ./deploy.sh --dev                  # Local hot-reload development"
     echo "  MEBTTY_PORT=3000 ./deploy.sh       # Start on port 3000"
     echo "  ./deploy.sh --status               # Check server status"
 }
@@ -505,6 +688,9 @@ case "${1:-}" in
         ;;
     --update|-u)
         update_and_redeploy
+        ;;
+    --dev|-d|--local-test)
+        start_dev_servers
         ;;
     --help|-h)
         print_help
