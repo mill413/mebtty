@@ -109,6 +109,13 @@ async def migrate_db():
             await conn.execute(text("ALTER TABLE user_settings ADD COLUMN file_show_line_numbers BOOLEAN DEFAULT 0 NOT NULL"))
             logger.info("Migration: added 'file_show_line_numbers' column to user_settings")
 
+        result = await conn.execute(text("PRAGMA table_info(sessions)"))
+        session_columns = {row[1] for row in result.fetchall()}
+
+        if "local_user" not in session_columns:
+            await conn.execute(text("ALTER TABLE sessions ADD COLUMN local_user VARCHAR(64)"))
+            logger.info("Migration: added 'local_user' column to sessions")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

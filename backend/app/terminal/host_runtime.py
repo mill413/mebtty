@@ -11,6 +11,7 @@ import struct
 import termios
 from typing import AsyncIterator
 
+from app.local_users import LocalUser
 from app.terminal.runtime import Runtime
 
 logger = logging.getLogger(__name__)
@@ -32,17 +33,36 @@ class HostRuntime(Runtime):
         rows: int = 24,
         cwd: str | None = None,
         env: dict | None = None,
+        local_user: LocalUser | None = None,
     ) -> None:
         if self._alive:
             raise RuntimeError("Runtime is already running")
 
-        # Build environment for the shell
-        try:
-            username = getpass.getuser()
-        except Exception:
-            username = os.environ.get("USER", "user")
+        if local_user is None:
+            try:
+                username = getpass.getuser()
+            except Exception:
+                username = os.environ.get("USER", "user")
+            uid = os.getuid()
+            gid = os.getgid()
+            home = os.environ.get("HOME", pwd.getpwuid(uid).pw_dir)
+        else:
+            username = local_user.username
+            uid = local_user.uid
+            gid = local_user.gid
+            home = local_user.home
+
+        current_uid = os.getuid()
+        needs_user_switch = uid != current_uid
+        if needs_user_switch and current_uid != 0:
+            current_username = pwd.getpwuid(current_uid).pw_name
+            raise PermissionError(
+                "Cannot start terminal as local user "
+                f"'{username}' from current process user '{current_username}'. "
+                "Run MebTTY as root to create terminals for local users."
+            )
+
         self._username = username
-        home = os.environ.get("HOME", pwd.getpwuid(os.getuid()).pw_dir)
 
         child_env = os.environ.copy()
         child_env.update({
@@ -96,6 +116,10 @@ class HostRuntime(Runtime):
 
         if pid == 0:
             # Child process
+            if needs_user_switch:
+                os.initgroups(username, gid)
+                os.setgid(gid)
+                os.setuid(uid)
             os.chdir(effective_cwd)
             # Start as login shell: argv[0] prefixed with '-'
             login_name = "-" + os.path.basename(shell)

@@ -14,6 +14,9 @@ const showShellDialog = ref(false)
 const selectedShell = ref('/bin/bash')
 const sessionTitle = ref('')
 const sessionCwd = ref('')
+const localUsername = ref('')
+const localPassword = ref('')
+const createError = ref('')
 const creating = ref(false)
 const showUserMenu = ref(false)
 
@@ -49,13 +52,22 @@ function closeUserMenu() {
 }
 
 async function createNewSession() {
+  createError.value = ''
   creating.value = true
   try {
-    await terminalStore.createSession(selectedShell.value, sessionTitle.value, sessionCwd.value)
+    await terminalStore.createSession(
+      selectedShell.value,
+      sessionTitle.value,
+      sessionCwd.value,
+      localUsername.value.trim(),
+      localPassword.value
+    )
     showShellDialog.value = false
     sessionTitle.value = ''
     sessionCwd.value = ''
+    localPassword.value = ''
   } catch (err) {
+    createError.value = err.response?.data?.detail || t('home.localLoginFailed')
     console.error('Failed to create session:', err)
   } finally {
     creating.value = false
@@ -295,6 +307,27 @@ function formatDate(dateStr) {
           </div>
 
           <div class="form-group">
+            <label>{{ t('home.localUsername') }}</label>
+            <input
+              v-model="localUsername"
+              type="text"
+              autocomplete="username"
+              :placeholder="t('home.localUsernamePlaceholder')"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>{{ t('home.localPassword') }}</label>
+            <input
+              v-model="localPassword"
+              type="password"
+              autocomplete="current-password"
+              :placeholder="t('home.localPasswordPlaceholder')"
+              @keyup.enter="createNewSession"
+            />
+          </div>
+
+          <div class="form-group">
             <label>{{ t('home.titleOptional') }}</label>
             <input v-model="sessionTitle" type="text" :placeholder="t('home.titlePlaceholder')" />
           </div>
@@ -304,9 +337,11 @@ function formatDate(dateStr) {
             <input v-model="sessionCwd" type="text" :placeholder="t('home.cwdPlaceholder')" />
           </div>
 
+          <p v-if="createError" class="dialog-error">{{ createError }}</p>
+
           <div class="dialog-actions">
             <button class="btn-secondary" @click="showShellDialog = false">{{ t('home.cancel') }}</button>
-            <button class="btn-primary" @click="createNewSession" :disabled="creating">
+            <button class="btn-primary" @click="createNewSession" :disabled="creating || !localUsername || !localPassword">
               {{ creating ? t('home.creating') : t('home.create') }}
             </button>
           </div>
@@ -601,6 +636,16 @@ function formatDate(dateStr) {
 
 .form-group input:focus {
   border-color: var(--accent);
+}
+
+.dialog-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--error) 35%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+  color: var(--error);
+  font-size: 13px;
 }
 
 .shell-grid {

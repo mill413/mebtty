@@ -11,6 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.local_users import (
+    authenticate_local_user,
+    resolve_local_user,
+)
 from app.session.service import SessionService
 from app.terminal.manager import RuntimeManager
 
@@ -23,6 +27,8 @@ class SessionCreate(BaseModel):
     title: str
     shell: str = "/bin/bash"
     cwd: str | None = None
+    local_user: str | None = None
+    local_password: str | None = None
     cols: int = 80
     rows: int = 24
 
@@ -32,6 +38,7 @@ class SessionResponse(BaseModel):
     user_id: str
     title: str
     shell: str
+    local_user: str | None = None
     cwd: str | None
     status: str
     cols: int
@@ -43,18 +50,20 @@ class SessionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-def _get_system_username() -> str:
-    try:
-        return pwd.getpwuid(os.getuid()).pw_name
-    except Exception:
-        return os.environ.get("USER", "unknown")
-
-
 def _session_to_response(session) -> dict:
     """Convert a session ORM object to a response dict with username."""
     data = {c.key: getattr(session, c.key) for c in session.__table__.columns}
-    data["username"] = _get_system_username()
+    data["username"] = session.local_user or _get_system_username_fallback()
     return data
+
+
+def _get_system_username_fallback() -> str:
+    try:
+        import os
+
+        return pwd.getpwuid(os.getuid()).pw_name
+    except Exception:
+        return "unknown"
 
 
 @router.get("", response_model=list[SessionResponse])
@@ -72,12 +81,44 @@ async def create_session(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if not body.local_user or not body.local_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Local username and password are required",
+        )
+
+    try:
+        local_user = resolve_local_user(body.local_user)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    try:
+        authenticated = authenticate_local_user(local_user.username, body.local_password)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+
+    if not authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid local username or password",
+        )
+
+    cwd = body.cwd or local_user.home
+    shell = body.shell or local_user.shell
+
     session = await SessionService.create_session(
         db,
         user_id=current_user.id,
         title=body.title,
-        shell=body.shell,
-        cwd=body.cwd,
+        shell=shell,
+        local_user=local_user.username,
+        cwd=cwd,
         cols=body.cols,
         rows=body.rows,
     )
@@ -87,10 +128,11 @@ async def create_session(
     try:
         await manager.create_runtime(
             session_id=session.id,
-            shell=body.shell,
+            shell=shell,
             cols=body.cols,
             rows=body.rows,
-            cwd=body.cwd,
+            cwd=cwd,
+            local_user=local_user,
         )
         await SessionService.update_session_status(db, session.id, "running")
     except Exception as e:
@@ -264,12 +306,14 @@ async def reconnect_session(
     else:
         # Runtime is dead, start a new one
         try:
+            local_user = resolve_local_user(session.local_user)
             await manager.create_runtime(
                 session_id=session_id,
                 shell=session.shell,
                 cols=session.cols,
                 rows=session.rows,
                 cwd=session.cwd,
+                local_user=local_user,
             )
             await SessionService.update_session_status(db, session_id, "running")
             logger.info("Created new runtime for reconnected session '%s'", session_id)
