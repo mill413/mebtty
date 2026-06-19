@@ -3,7 +3,7 @@ Version: ${VERSION}
 Section: web
 Priority: optional
 Architecture: amd64
-Depends: libc6 (>= 2.36)
+Depends: libc6 (>= 2.36), libpam0g
 Maintainer: MebTTY Maintainers
 Homepage: https://github.com/mill413/mebtty
 Description: Self-hosted web terminal
@@ -11,4 +11,5 @@ Description: Self-hosted web terminal
  to any browser. Supports bash, zsh, fish, nushell with oh-my-zsh
  themes, file browser, multi-tab interface, and Catppuccin UI.
  .
- Installed as a systemd service with security hardening.
+ Installed as a systemd service that authenticates local users with PAM
+ and drops terminal sessions to the selected local user.

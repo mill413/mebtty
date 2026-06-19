@@ -5,6 +5,7 @@ After=network.target
 
 [Service]
 Type=simple
+WorkingDirectory=/var/lib/mebtty
 ExecStart=/usr/local/bin/mebtty
 Restart=on-failure
 RestartSec=5
@@ -20,6 +21,7 @@ StateDirectory=mebtty
 LogsDirectory=mebtty
 Environment=MEBTTY_DATABASE_URL=sqlite+aiosqlite:////var/lib/mebtty/mebtty.db
 Environment=MEBTTY_UPLOAD_DIR=/var/lib/mebtty/uploads
+Environment=MEBTTY_BROWSE_ROOT=/var/lib/mebtty
 
 # Logging to systemd journal
 StandardOutput=journal
@@ -27,10 +29,12 @@ StandardError=journal
 SyslogIdentifier=mebtty
 
 # Security hardening
-NoNewPrivileges=true
+# MebTTY starts as root so it can authenticate local users and drop terminal
+# sessions to the selected user's uid/gid, similar to sshd/login.
+NoNewPrivileges=false
 ProtectSystem=strict
-ReadWritePaths=/var/lib/mebtty
-ProtectHome=read-only
+ReadWritePaths=/var/lib/mebtty /home
+ProtectHome=false
 PrivateTmp=true
 
 [Install]
