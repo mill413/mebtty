@@ -80,6 +80,41 @@ const iconOptions = Object.entries(iconModules)
     return a.label.localeCompare(b.label)
   })
 
+const processIconMap = {
+  claude: 'robots',
+  'claude-code': 'robots',
+  claudecode: 'robots',
+  anthropic: 'robots',
+  codex: 'robots',
+  'codex-linux-sandbox': 'robots',
+  'codex-linux-san': 'robots',
+  openai: 'robots',
+  chatgpt: 'robots',
+  bash: 'bash',
+  sh: 'bash',
+  dash: 'bash',
+  ksh: 'bash',
+  powershell: 'powershell',
+  pwsh: 'powershell',
+  nvim: 'vim',
+  vim: 'vim',
+  vi: 'vim',
+  git: 'git',
+  lazygit: 'git',
+  python: 'python',
+  python3: 'python',
+  node: 'javascript',
+  npm: 'npm',
+  pnpm: 'pnpm',
+  yarn: 'yarn',
+  bun: 'bun',
+  docker: 'docker',
+  cargo: 'cargo',
+  go: 'go',
+  make: 'makefile',
+  nginx: 'nginx'
+}
+
 function formatIconLabel(name) {
   return name
     .replace(/^_/, '')
@@ -225,6 +260,16 @@ function getTabDisplayTitle(tab) {
   )
 }
 
+function getProcessIconName(processName) {
+  if (!processName) return ''
+  const normalized = processName.toLowerCase()
+  if (processIconMap[normalized]) return processIconMap[normalized]
+  for (const [name, icon] of Object.entries(processIconMap)) {
+    if (normalized.includes(name)) return icon
+  }
+  return ''
+}
+
 function getShellIconName(shell) {
   if (!shell) return ''
   const s = shell.toLowerCase()
@@ -247,7 +292,7 @@ function getIconSource(iconName) {
 }
 
 function getTabIcon(tab) {
-  const iconName = tab.iconOverride || getShellIconName(tab.shell)
+  const iconName = tab.iconOverride || getProcessIconName(tab.processName) || getShellIconName(tab.shell)
   if (iconName) {
     return {
       type: 'image',

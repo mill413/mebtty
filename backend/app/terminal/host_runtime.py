@@ -213,6 +213,20 @@ class HostRuntime(Runtime):
                     return username
         return self._username
 
+    def current_process_name(self) -> str | None:
+        if self._pid is None:
+            return None
+
+        foreground_pgid = self._foreground_pgid()
+        if foreground_pgid is not None:
+            foreground_pid = self._pid_for_group(foreground_pgid)
+            if foreground_pid is not None:
+                process_name = self._process_name(foreground_pid)
+                if process_name:
+                    return process_name
+
+        return self._process_name(self._pid)
+
     @property
     def is_alive(self) -> bool:
         if not self._alive or self._pid is None:
@@ -269,6 +283,53 @@ class HostRuntime(Runtime):
             }
         except (OSError, IndexError, ValueError):
             return None
+
+    def _process_name(self, pid: int) -> str | None:
+        command_line = self._process_command_line(pid)
+        if command_line:
+            detected_agent = self._detect_agent_process(command_line)
+            if detected_agent:
+                return detected_agent
+
+            command = os.path.basename(command_line[0])
+            if command:
+                return command
+
+        try:
+            with open(f"/proc/{pid}/comm", "r", encoding="utf-8") as comm_file:
+                return comm_file.read().strip()
+        except OSError:
+            return None
+
+    def _process_command_line(self, pid: int) -> list[str]:
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as cmdline_file:
+                raw = cmdline_file.read()
+        except OSError:
+            return []
+
+        return [
+            part.decode("utf-8", errors="ignore")
+            for part in raw.split(b"\0")
+            if part
+        ]
+
+    def _detect_agent_process(self, command_line: list[str]) -> str | None:
+        normalized = " ".join(command_line).lower()
+        agent_markers = [
+            ("codex-linux-sandbox", "codex"),
+            ("codex", "codex"),
+            ("claude-code", "claude-code"),
+            ("claudecode", "claude-code"),
+            ("claude", "claude-code"),
+            ("anthropic", "claude-code"),
+            ("openai", "codex"),
+            ("chatgpt", "codex"),
+        ]
+        for marker, process_name in agent_markers:
+            if marker in normalized:
+                return process_name
+        return None
 
     def _username_for_pid(self, pid: int) -> str | None:
         try:

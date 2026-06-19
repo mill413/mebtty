@@ -143,6 +143,7 @@ async def _status_watcher(websocket: WebSocket, runtime, session_id: str) -> Non
             status = {
                 "cwd": cwd or "",
                 "username": runtime.current_username() or "",
+                "process": runtime.current_process_name() or "",
             }
             if status != last_status:
                 last_status = status

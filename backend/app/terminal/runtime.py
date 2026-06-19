@@ -31,6 +31,9 @@ class Runtime(ABC):
     def current_username(self) -> str | None:
         return None
 
+    def current_process_name(self) -> str | None:
+        return None
+
     @property
     @abstractmethod
     def is_alive(self) -> bool: ...

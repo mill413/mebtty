@@ -35,6 +35,7 @@ export const useTerminalStore = defineStore('terminal', {
         shell: shell,
         cwd: cwd || data.cwd || '',
         username: data.username || '',
+        processName: data.process || '',
         iconOverride: null,
         status: 'running'
       })
@@ -132,6 +133,7 @@ export const useTerminalStore = defineStore('terminal', {
         shell: shell || '/bin/bash',
         cwd,
         username,
+        processName: '',
         iconOverride: null,
         status: 'running'
       })
@@ -157,6 +159,7 @@ export const useTerminalStore = defineStore('terminal', {
       if (tab) {
         if (typeof status.cwd === 'string' && status.cwd) tab.cwd = status.cwd
         if (typeof status.username === 'string' && status.username) tab.username = status.username
+        if (typeof status.process === 'string') tab.processName = status.process
       }
 
       const session = this.sessions.find((s) => s.id === sessionId)
