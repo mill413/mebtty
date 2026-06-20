@@ -27,7 +27,5 @@ The GitHub release workflow rewrites `pkgver` and checksums for the tagged relea
 Required secrets for AUR publishing:
 
 - `AUR_SSH_PRIVATE_KEY`: SSH private key with access to `aur@aur.archlinux.org:mebtty.git`
-- `AUR_COMMIT_USER`: git author name
-- `AUR_COMMIT_EMAIL`: git author email
 
-If these secrets are not configured, the workflow still builds and uploads the AUR source archive to the GitHub Release.
+If this secret is not configured, the workflow still builds and uploads the AUR source archive to the GitHub Release. AUR commits use `haruto <mill413@outlook.com>` as the author identity.

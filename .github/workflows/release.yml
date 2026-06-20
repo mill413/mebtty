@@ -281,25 +281,21 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          AUR_COMMIT_USER: ${{ secrets.AUR_COMMIT_USER }}
-          AUR_COMMIT_EMAIL: ${{ secrets.AUR_COMMIT_EMAIL }}
         run: |
           if [[ "$VERSION" == *.dev ]]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "AUR publishing skipped for prerelease version: $VERSION"
-          elif [[ -n "$AUR_SSH_PRIVATE_KEY" && -n "$AUR_COMMIT_USER" && -n "$AUR_COMMIT_EMAIL" ]]; then
+          elif [[ -n "$AUR_SSH_PRIVATE_KEY" ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "AUR publishing skipped: configure AUR_SSH_PRIVATE_KEY, AUR_COMMIT_USER, and AUR_COMMIT_EMAIL to enable it."
+            echo "AUR publishing skipped: configure AUR_SSH_PRIVATE_KEY to enable it."
           fi
 
       - name: Publish to AUR
         if: steps.aur_publish.outputs.enabled == 'true'
         env:
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          AUR_COMMIT_USER: ${{ secrets.AUR_COMMIT_USER }}
-          AUR_COMMIT_EMAIL: ${{ secrets.AUR_COMMIT_EMAIL }}
         run: |
           install -dm700 ~/.ssh
           printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
@@ -313,8 +309,8 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
 
-          git config --global user.name "$AUR_COMMIT_USER"
-          git config --global user.email "$AUR_COMMIT_EMAIL"
+          git config --global user.name "haruto"
+          git config --global user.email "mill413@outlook.com"
 
           AUR_REMOTE="ssh://aur@aur.archlinux.org/mebtty.git"
           if ! git clone "$AUR_REMOTE" aur-repo; then
