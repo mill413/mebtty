@@ -133,6 +133,7 @@ export default {
     sectionTerminal: '終端機',
     sectionFiles: '檔案',
     sectionStatus: '狀態列',
+    sectionPlugins: '外掛',
     sectionAccount: '帳戶',
     language: '語言',
     languageDesc: '選擇應用程式的顯示語言',
@@ -195,6 +196,65 @@ export default {
     sessionTimeoutDesc: '在指定時間後自動刪除已停止的工作階段',
     timeoutDisabled: '關閉',
     hours: '小時',
+    pluginInstall: '安裝外掛',
+    pluginInstallDesc: '上傳 .mtpx 外掛包。第三方外掛安裝後預設不會啟用。',
+    pluginChoosePackage: '選擇外掛包',
+    pluginInstalling: '安裝中...',
+    pluginRefresh: '重新整理',
+    pluginRefreshing: '重新整理中...',
+    installedPlugins: '已安裝外掛',
+    installedPluginsDesc: '管理內建外掛和已安裝的第三方外掛',
+    pluginLoading: '正在載入外掛...',
+    noPlugins: '沒有外掛',
+    pluginBuiltin: '內建',
+    pluginThirdParty: '第三方',
+    pluginEnable: '啟用',
+    pluginDisable: '停用',
+    pluginDelete: '刪除',
+    pluginDeleteConfirm: '確定要刪除外掛 {name} 嗎？',
+    pluginInstalled: '外掛已安裝',
+    pluginEnabled: '外掛已啟用',
+    pluginDisabled: '外掛已停用',
+    pluginDeleted: '外掛已刪除',
+    pluginLoadFailed: '載入外掛失敗',
+    pluginInstallFailed: '安裝外掛失敗',
+    pluginActionFailed: '外掛操作失敗',
+    pluginStatusInstalled: '已安裝',
+    pluginStatusEnabled: '已啟用',
+    pluginStatusDisabled: '已停用',
+    pluginStatusError: '錯誤',
+    pluginTypeTheme: '主題',
+    pluginTypeIconPack: '圖示包',
+    pluginTypeFileProvider: '檔案提供者',
+    pluginTypePanel: '面板',
+    pluginTypeIntegration: '整合',
+    pluginPermission: {
+      ui: {
+        panel: '面板',
+        toolbar: '工具列',
+        settings: '設定'
+      },
+      theme: {
+        provide: '主題'
+      },
+      icons: {
+        provide: '圖示'
+      },
+      filesystem: {
+        read: '讀取檔案',
+        write: '寫入檔案',
+        delete: '刪除檔案',
+        upload: '上傳',
+        download: '下載'
+      },
+      network: {
+        client: '網路'
+      },
+      terminal: {
+        read: '讀取終端機',
+        write: '寫入終端機'
+      }
+    },
     saved: '已儲存',
     delete: '刪除',
     deleteConfirm: '確定要刪除此工作階段嗎？'

@@ -42,6 +42,11 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
 const passwordSuccess = ref(false)
+const plugins = ref([])
+const pluginsLoading = ref(false)
+const pluginsError = ref('')
+const pluginsMessage = ref('')
+const pluginInstalling = ref(false)
 const activeSection = ref('appearance')
 const sectionRefs = ref({})
 const activeThemeAccent = computed(() => {
@@ -55,6 +60,7 @@ const settingSections = [
   { key: 'terminal', label: 'settings.sectionTerminal' },
   { key: 'files', label: 'settings.sectionFiles' },
   { key: 'status', label: 'settings.sectionStatus' },
+  { key: 'plugins', label: 'settings.sectionPlugins' },
   { key: 'account', label: 'settings.sectionAccount' }
 ]
 
@@ -104,6 +110,7 @@ onMounted(async () => {
   if (!authStore.user) await authStore.fetchUser()
   if (!settingsStore.loaded) await settingsStore.fetchSettings()
   tabFormat.value = settingsStore.tabTitleFormat
+  await loadPlugins()
 })
 
 function changeTheme(mode) {
@@ -237,6 +244,97 @@ function goBack() {
 function logout() {
   authStore.logout()
   router.push('/login')
+}
+
+function setPluginNotice(message = '', error = '') {
+  pluginsMessage.value = message
+  pluginsError.value = error
+}
+
+async function loadPlugins() {
+  pluginsLoading.value = true
+  setPluginNotice()
+  try {
+    const { data } = await api.get('/api/plugins')
+    plugins.value = data
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginLoadFailed'))
+  } finally {
+    pluginsLoading.value = false
+  }
+}
+
+async function installPlugin(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  pluginInstalling.value = true
+  setPluginNotice()
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    await api.post('/api/plugins/install', formData)
+    setPluginNotice(t('settings.pluginInstalled'))
+    await loadPlugins()
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginInstallFailed'))
+  } finally {
+    pluginInstalling.value = false
+  }
+}
+
+async function enablePlugin(plugin) {
+  setPluginNotice()
+  try {
+    await api.post(`/api/plugins/${encodeURIComponent(plugin.id)}/enable`)
+    setPluginNotice(t('settings.pluginEnabled'))
+    await loadPlugins()
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginActionFailed'))
+  }
+}
+
+async function disablePlugin(plugin) {
+  setPluginNotice()
+  try {
+    await api.post(`/api/plugins/${encodeURIComponent(plugin.id)}/disable`)
+    setPluginNotice(t('settings.pluginDisabled'))
+    await loadPlugins()
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginActionFailed'))
+  }
+}
+
+async function deletePlugin(plugin) {
+  if (!window.confirm(t('settings.pluginDeleteConfirm', { name: plugin.name }))) return
+
+  setPluginNotice()
+  try {
+    await api.delete(`/api/plugins/${encodeURIComponent(plugin.id)}`)
+    setPluginNotice(t('settings.pluginDeleted'))
+    await loadPlugins()
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginActionFailed'))
+  }
+}
+
+function canDisablePlugin(plugin) {
+  return !plugin.builtin || plugin.id === 'builtin.file-browser'
+}
+
+function pluginStatusLabel(status) {
+  return t(`settings.pluginStatus${status.charAt(0).toUpperCase()}${status.slice(1)}`)
+}
+
+function pluginTypeLabel(type) {
+  const key = type.replace(/(^|-)([a-z])/g, (_, _sep, char) => char.toUpperCase())
+  return t(`settings.pluginType${key}`)
+}
+
+function pluginPermissionLabel(permission) {
+  return t(`settings.pluginPermission.${permission}`)
 }
 </script>
 
@@ -601,6 +699,100 @@ function logout() {
                     <option value="left">{{ t('settings.statusPositionLeft') }}</option>
                     <option value="right">{{ t('settings.statusPositionRight') }}</option>
                   </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-section" :ref="(el) => setSectionRef('plugins', el)">
+          <div class="settings-section-head">
+            <h2>{{ t('settings.sectionPlugins') }}</h2>
+          </div>
+
+          <div class="setting-row setting-row-column">
+            <div class="setting-info">
+              <h3>{{ t('settings.pluginInstall') }}</h3>
+              <p>{{ t('settings.pluginInstallDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div class="plugin-toolbar">
+                <label class="btn-upload" :class="{ disabled: pluginInstalling }">
+                  <input type="file" accept=".mtpx" @change="installPlugin" hidden :disabled="pluginInstalling" />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  {{ pluginInstalling ? t('settings.pluginInstalling') : t('settings.pluginChoosePackage') }}
+                </label>
+                <button class="btn-secondary" @click="loadPlugins" :disabled="pluginsLoading">
+                  {{ pluginsLoading ? t('settings.pluginRefreshing') : t('settings.pluginRefresh') }}
+                </button>
+              </div>
+              <p v-if="pluginsError" class="msg-error">{{ pluginsError }}</p>
+              <p v-if="pluginsMessage" class="msg-success">{{ pluginsMessage }}</p>
+            </div>
+          </div>
+
+          <div class="setting-row setting-row-column">
+            <div class="setting-info">
+              <h3>{{ t('settings.installedPlugins') }}</h3>
+              <p>{{ t('settings.installedPluginsDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div v-if="pluginsLoading" class="plugin-empty">{{ t('settings.pluginLoading') }}</div>
+              <div v-else-if="plugins.length === 0" class="plugin-empty">{{ t('settings.noPlugins') }}</div>
+              <div v-else class="plugin-list">
+                <div v-for="plugin in plugins" :key="plugin.id" class="plugin-item">
+                  <div class="plugin-main">
+                    <div class="plugin-title-row">
+                      <h4>{{ plugin.name }}</h4>
+                      <span class="plugin-badge" :class="{ builtin: plugin.builtin }">
+                        {{ plugin.builtin ? t('settings.pluginBuiltin') : t('settings.pluginThirdParty') }}
+                      </span>
+                      <span class="plugin-status" :class="plugin.status">
+                        {{ pluginStatusLabel(plugin.status) }}
+                      </span>
+                    </div>
+                    <div class="plugin-meta">
+                      <code>{{ plugin.id }}</code>
+                      <span>{{ pluginTypeLabel(plugin.type) }}</span>
+                      <span>v{{ plugin.version }}</span>
+                    </div>
+                    <p v-if="plugin.manifest.description" class="plugin-description">
+                      {{ plugin.manifest.description }}
+                    </p>
+                    <div class="plugin-permissions" v-if="plugin.permissions.length">
+                      <span v-for="permission in plugin.permissions" :key="permission" class="plugin-permission">
+                        {{ pluginPermissionLabel(permission) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="plugin-actions">
+                    <button
+                      v-if="plugin.status !== 'enabled'"
+                      class="btn-secondary"
+                      @click="enablePlugin(plugin)"
+                    >
+                      {{ t('settings.pluginEnable') }}
+                    </button>
+                    <button
+                      v-else
+                      class="btn-secondary"
+                      @click="disablePlugin(plugin)"
+                      :disabled="!canDisablePlugin(plugin)"
+                    >
+                      {{ t('settings.pluginDisable') }}
+                    </button>
+                    <button
+                      v-if="!plugin.builtin"
+                      class="btn-danger"
+                      @click="deletePlugin(plugin)"
+                    >
+                      {{ t('settings.pluginDelete') }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1179,6 +1371,143 @@ function logout() {
   border-color: var(--accent);
 }
 
+.btn-upload.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Plugins */
+.plugin-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plugin-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.plugin-item:last-child {
+  border-bottom: none;
+}
+
+.plugin-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plugin-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plugin-title-row h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.plugin-badge,
+.plugin-status,
+.plugin-permission {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--subtext);
+  background: var(--bg);
+}
+
+.plugin-badge.builtin {
+  color: var(--accent);
+}
+
+.plugin-status.enabled {
+  color: var(--success, #10b981);
+}
+
+.plugin-status.disabled,
+.plugin-status.installed {
+  color: var(--subtext);
+}
+
+.plugin-status.error {
+  color: var(--error, #ef4444);
+}
+
+.plugin-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--subtext);
+  font-size: 12px;
+}
+
+.plugin-meta code {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.plugin-description {
+  margin: 0;
+  color: var(--subtext);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.plugin-permissions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.plugin-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.plugin-empty {
+  color: var(--subtext);
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .plugin-item {
+    flex-direction: column;
+  }
+
+  .plugin-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 /* Password form */
 .password-form {
   display: flex;
@@ -1228,6 +1557,38 @@ function logout() {
 .btn-secondary:hover {
   background: var(--surface-hover);
   border-color: var(--accent);
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius);
+  color: var(--error, #ef4444);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: var(--error, #ef4444);
+}
+
+.btn-secondary:disabled,
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary:disabled:hover,
+.btn-danger:disabled:hover {
+  background: var(--surface);
+  border-color: var(--border);
 }
 
 .msg-error {

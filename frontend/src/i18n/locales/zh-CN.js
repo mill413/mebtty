@@ -133,6 +133,7 @@ export default {
     sectionTerminal: '终端',
     sectionFiles: '文件',
     sectionStatus: '状态栏',
+    sectionPlugins: '插件',
     sectionAccount: '账户',
     language: '语言',
     languageDesc: '选择应用程序的显示语言',
@@ -195,6 +196,65 @@ export default {
     sessionTimeoutDesc: '在指定时间后自动删除已停止的会话',
     timeoutDisabled: '关闭',
     hours: '小时',
+    pluginInstall: '安装插件',
+    pluginInstallDesc: '上传 .mtpx 插件包。第三方插件安装后默认不会启用。',
+    pluginChoosePackage: '选择插件包',
+    pluginInstalling: '安装中...',
+    pluginRefresh: '刷新',
+    pluginRefreshing: '刷新中...',
+    installedPlugins: '已安装插件',
+    installedPluginsDesc: '管理内置插件和已安装的第三方插件',
+    pluginLoading: '正在加载插件...',
+    noPlugins: '没有插件',
+    pluginBuiltin: '内置',
+    pluginThirdParty: '第三方',
+    pluginEnable: '启用',
+    pluginDisable: '禁用',
+    pluginDelete: '删除',
+    pluginDeleteConfirm: '确定要删除插件 {name} 吗？',
+    pluginInstalled: '插件已安装',
+    pluginEnabled: '插件已启用',
+    pluginDisabled: '插件已禁用',
+    pluginDeleted: '插件已删除',
+    pluginLoadFailed: '加载插件失败',
+    pluginInstallFailed: '安装插件失败',
+    pluginActionFailed: '插件操作失败',
+    pluginStatusInstalled: '已安装',
+    pluginStatusEnabled: '已启用',
+    pluginStatusDisabled: '已禁用',
+    pluginStatusError: '错误',
+    pluginTypeTheme: '主题',
+    pluginTypeIconPack: '图标包',
+    pluginTypeFileProvider: '文件提供者',
+    pluginTypePanel: '面板',
+    pluginTypeIntegration: '集成',
+    pluginPermission: {
+      ui: {
+        panel: '面板',
+        toolbar: '工具栏',
+        settings: '设置'
+      },
+      theme: {
+        provide: '主题'
+      },
+      icons: {
+        provide: '图标'
+      },
+      filesystem: {
+        read: '读文件',
+        write: '写文件',
+        delete: '删文件',
+        upload: '上传',
+        download: '下载'
+      },
+      network: {
+        client: '网络'
+      },
+      terminal: {
+        read: '读终端',
+        write: '写终端'
+      }
+    },
     saved: '已保存',
     delete: '删除',
     deleteConfirm: '确定要删除此会话吗？'

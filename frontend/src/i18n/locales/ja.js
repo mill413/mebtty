@@ -132,6 +132,7 @@ export default {
     sectionTerminal: 'ターミナル',
     sectionFiles: 'ファイル',
     sectionStatus: 'ステータスバー',
+    sectionPlugins: 'プラグイン',
     sectionAccount: 'アカウント',
     language: '言語',
     languageDesc: 'アプリケーションの表示言語を選択',
@@ -194,6 +195,65 @@ export default {
     sessionTimeoutDesc: '停止したセッションを指定時間後に自動削除',
     timeoutDisabled: '無効',
     hours: '時間',
+    pluginInstall: 'プラグインをインストール',
+    pluginInstallDesc: '.mtpx プラグインパッケージをアップロードします。サードパーティープラグインは自動的に有効になりません。',
+    pluginChoosePackage: 'パッケージを選択',
+    pluginInstalling: 'インストール中...',
+    pluginRefresh: '更新',
+    pluginRefreshing: '更新中...',
+    installedPlugins: 'インストール済みプラグイン',
+    installedPluginsDesc: '組み込みプラグインとインストール済みサードパーティープラグインを管理',
+    pluginLoading: 'プラグインを読み込み中...',
+    noPlugins: 'プラグインがありません',
+    pluginBuiltin: '組み込み',
+    pluginThirdParty: 'サードパーティー',
+    pluginEnable: '有効化',
+    pluginDisable: '無効化',
+    pluginDelete: '削除',
+    pluginDeleteConfirm: 'プラグイン {name} を削除しますか？',
+    pluginInstalled: 'プラグインをインストールしました',
+    pluginEnabled: 'プラグインを有効化しました',
+    pluginDisabled: 'プラグインを無効化しました',
+    pluginDeleted: 'プラグインを削除しました',
+    pluginLoadFailed: 'プラグインの読み込みに失敗しました',
+    pluginInstallFailed: 'プラグインのインストールに失敗しました',
+    pluginActionFailed: 'プラグイン操作に失敗しました',
+    pluginStatusInstalled: 'インストール済み',
+    pluginStatusEnabled: '有効',
+    pluginStatusDisabled: '無効',
+    pluginStatusError: 'エラー',
+    pluginTypeTheme: 'テーマ',
+    pluginTypeIconPack: 'アイコンパック',
+    pluginTypeFileProvider: 'ファイルプロバイダー',
+    pluginTypePanel: 'パネル',
+    pluginTypeIntegration: '連携',
+    pluginPermission: {
+      ui: {
+        panel: 'パネル',
+        toolbar: 'ツールバー',
+        settings: '設定'
+      },
+      theme: {
+        provide: 'テーマ'
+      },
+      icons: {
+        provide: 'アイコン'
+      },
+      filesystem: {
+        read: 'ファイル読み取り',
+        write: 'ファイル書き込み',
+        delete: 'ファイル削除',
+        upload: 'アップロード',
+        download: 'ダウンロード'
+      },
+      network: {
+        client: 'ネットワーク'
+      },
+      terminal: {
+        read: 'ターミナル読み取り',
+        write: 'ターミナル書き込み'
+      }
+    },
     saved: '保存しました',
     delete: '削除',
     deleteConfirm: 'このセッションを削除してもよろしいですか？'

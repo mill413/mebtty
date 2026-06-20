@@ -91,6 +91,17 @@ function parseCustomTheme(raw) {
   }
 }
 
+function parsePluginSettings(raw) {
+  if (!raw) return {}
+
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
 function cloneDefaultCustomTheme() {
   return {
     dark: { ...DEFAULT_CUSTOM_THEME.dark },
@@ -109,6 +120,7 @@ export const useSettingsStore = defineStore('settings', {
     sessionTimeout: 0,
     fileAutoSave: localStorage.getItem('mebtty-file-auto-save') !== 'false',
     fileShowLineNumbers: localStorage.getItem('mebtty-file-show-line-numbers') === 'true',
+    pluginSettings: parsePluginSettings(localStorage.getItem('mebtty-plugin-settings')),
     statusBarVisible: localStorage.getItem('mebtty-statusbar-visible') !== 'false',
     statusBarItems: JSON.parse(localStorage.getItem('mebtty-statusbar-items') || '[{"key":"shell","visible":false,"position":"left","order":0},{"key":"status","visible":false,"position":"left","order":1},{"key":"connection","visible":true,"position":"right","order":0}]'),
     loaded: false
@@ -139,6 +151,7 @@ export const useSettingsStore = defineStore('settings', {
         this.sessionTimeout = data.session_timeout
         this.fileAutoSave = data.file_auto_save !== false
         this.fileShowLineNumbers = data.file_show_line_numbers === true
+        this.pluginSettings = parsePluginSettings(data.plugin_settings)
         this.saveLocalSettings()
         this.loaded = true
         this.applyThemeColors()
@@ -161,6 +174,7 @@ export const useSettingsStore = defineStore('settings', {
         this.sessionTimeout = data.session_timeout
         this.fileAutoSave = data.file_auto_save !== false
         this.fileShowLineNumbers = data.file_show_line_numbers === true
+        this.pluginSettings = parsePluginSettings(data.plugin_settings)
         this.saveLocalSettings()
         this.applyThemeColors()
       } catch (err) {
@@ -175,6 +189,7 @@ export const useSettingsStore = defineStore('settings', {
       localStorage.setItem('mebtty-custom-theme', JSON.stringify(this.customTheme))
       localStorage.setItem('mebtty-file-auto-save', this.fileAutoSave)
       localStorage.setItem('mebtty-file-show-line-numbers', this.fileShowLineNumbers)
+      localStorage.setItem('mebtty-plugin-settings', JSON.stringify(this.pluginSettings))
     },
 
     applyAccentColor() {
@@ -296,6 +311,12 @@ export const useSettingsStore = defineStore('settings', {
       this.fileShowLineNumbers = enabled
       localStorage.setItem('mebtty-file-show-line-numbers', enabled)
       this.updateSettings({ file_show_line_numbers: enabled })
+    },
+
+    updatePluginSettings(settings) {
+      this.pluginSettings = settings && typeof settings === 'object' ? settings : {}
+      this.saveLocalSettings()
+      this.updateSettings({ plugin_settings: JSON.stringify(this.pluginSettings) })
     },
 
     toggleStatusBarItemVisible(key, visible) {

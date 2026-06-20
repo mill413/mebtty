@@ -133,6 +133,7 @@ export default {
     sectionTerminal: 'Terminal',
     sectionFiles: 'Files',
     sectionStatus: 'Status Bar',
+    sectionPlugins: 'Plugins',
     sectionAccount: 'Account',
     language: 'Language',
     languageDesc: 'Choose the display language of the application',
@@ -195,6 +196,65 @@ export default {
     sessionTimeoutDesc: 'Automatically delete stopped sessions after a period of time',
     timeoutDisabled: 'Disabled',
     hours: 'hours',
+    pluginInstall: 'Install Plugin',
+    pluginInstallDesc: 'Upload an .mtpx plugin package. Third-party plugins are not enabled automatically.',
+    pluginChoosePackage: 'Choose Package',
+    pluginInstalling: 'Installing...',
+    pluginRefresh: 'Refresh',
+    pluginRefreshing: 'Refreshing...',
+    installedPlugins: 'Installed Plugins',
+    installedPluginsDesc: 'Manage built-in plugins and installed third-party plugins',
+    pluginLoading: 'Loading plugins...',
+    noPlugins: 'No plugins',
+    pluginBuiltin: 'Built-in',
+    pluginThirdParty: 'Third-party',
+    pluginEnable: 'Enable',
+    pluginDisable: 'Disable',
+    pluginDelete: 'Delete',
+    pluginDeleteConfirm: 'Delete plugin {name}?',
+    pluginInstalled: 'Plugin installed',
+    pluginEnabled: 'Plugin enabled',
+    pluginDisabled: 'Plugin disabled',
+    pluginDeleted: 'Plugin deleted',
+    pluginLoadFailed: 'Failed to load plugins',
+    pluginInstallFailed: 'Failed to install plugin',
+    pluginActionFailed: 'Plugin action failed',
+    pluginStatusInstalled: 'Installed',
+    pluginStatusEnabled: 'Enabled',
+    pluginStatusDisabled: 'Disabled',
+    pluginStatusError: 'Error',
+    pluginTypeTheme: 'Theme',
+    pluginTypeIconPack: 'Icon Pack',
+    pluginTypeFileProvider: 'File Provider',
+    pluginTypePanel: 'Panel',
+    pluginTypeIntegration: 'Integration',
+    pluginPermission: {
+      ui: {
+        panel: 'Panel',
+        toolbar: 'Toolbar',
+        settings: 'Settings'
+      },
+      theme: {
+        provide: 'Theme'
+      },
+      icons: {
+        provide: 'Icons'
+      },
+      filesystem: {
+        read: 'Read Files',
+        write: 'Write Files',
+        delete: 'Delete Files',
+        upload: 'Upload',
+        download: 'Download'
+      },
+      network: {
+        client: 'Network'
+      },
+      terminal: {
+        read: 'Read Terminal',
+        write: 'Write Terminal'
+      }
+    },
     saved: 'Saved',
     delete: 'Delete',
     deleteConfirm: 'Are you sure you want to delete this session?'
