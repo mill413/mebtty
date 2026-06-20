@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0-blueviolet" alt="Version">
+  <img src="https://img.shields.io/github/v/release/mill413/mebtty?label=version&color=blueviolet" alt="Version">
   <img src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/vue-3.4%2B-brightgreen?logo=vue.js&logoColor=white" alt="Vue">
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
@@ -22,6 +22,8 @@
 MebTTY turns any modern browser into a fully-featured terminal. Built with **FastAPI** and **Vue 3**, it provides real PTY sessions with support for bash, zsh, fish, nushell and more — including oh-my-zsh themes and interactive TUI programs like vim, htop, and less.
 
 A built-in **file browser** lets you browse, preview, edit, upload, download, rename, and delete files alongside your terminal. A **Catppuccin-themed** UI with dark/light modes, customizable accent colors, multi-tab support, and four languages (English, 简体中文, 繁體中文, 日本語) make it pleasant to use every day.
+
+MebTTY also includes a first-class **plugin system**. Built-in features such as the file browser, default theme, and icon pack are registered as plugins, and administrators can install `.mtpx` packages that contribute panels, toolbar actions, settings sections, themes, icon packs, and file providers.
 
 Deploy with a single script or Docker — and access your server from anywhere.
 
@@ -57,15 +59,26 @@ Deploy with a single script or Docker — and access your server from anywhere.
 - **Catppuccin File Icons** — 200+ themed SVG icons for files and folders
 - **Context Menu** — Right-click for quick file operations
 - **Configurable Root** — Set the browse root directory via environment variable
-- **Path Traversal Protection** — All file paths validated to stay within the allowed root
+- **Path Safety Checks** — Relative paths start from the configured browse root; absolute paths are resolved and rely on OS permissions
 
 ### Appearance & Customization
 
 - **Catppuccin Color Scheme** — Mocha (dark) and Latte (light) palettes for both UI and terminal
 - **Three Theme Modes** — System (follows OS preference), Dark, and Light
 - **Customizable Accent Color** — 7 presets (violet, blue, emerald, amber, red, pink, cyan) plus a custom color picker
+- **Full Custom Themes** — Customize dark and light color tokens independently
+- **Plugin Themes & Icons** — Enabled plugins can contribute selectable themes and file icon packs
 - **Configurable Status Bar** — Show/hide, drag-to-reorder items (shell, process status, connection), left/right positioning
 - **Sidebar Position** — Choose left or right side for the file browser
+
+### Plugins
+
+- **Installable `.mtpx` Packages** — Upload plugin packages from Settings or the plugin API
+- **Built-In Plugin Foundation** — File browser, default theme, and Catppuccin icons are bundled plugins and update with MebTTY itself
+- **Runtime Contributions** — Plugins can add terminal panels, toolbar buttons, settings sections, themes, icon packs, and file providers
+- **Admin-Only Management** — Installing, enabling, disabling, and deleting plugins requires an administrator account
+- **Package Validation** — Plugin IDs, schemas, permissions, safe zip paths, file counts, and expanded size are validated before installation
+- **Frontend Plugin API** — Frontend plugins receive Vue helpers and the authenticated `ctx.api` client
 
 ### Internationalization
 
@@ -77,9 +90,11 @@ Deploy with a single script or Docker — and access your server from anywhere.
 
 - **JWT Authentication** — Token-based auth with access/refresh token rotation and bcrypt password hashing
 - **Automatic Token Refresh** — Expired access tokens are refreshed transparently before redirecting to login
+- **First-User Admin Setup** — The first registered MebTTY user becomes an administrator; existing databases without an admin promote the oldest user
+- **Local User Login for Terminals** — Terminal creation can authenticate a local OS user with PAM and run the PTY as that user
 - **User Avatar** — Upload and display profile pictures (PNG, JPEG, WebP, GIF)
 - **Audit Logging** — Track all user actions and executed commands with risk levels
-- **Admin Controls** — Admin-only audit event listing; per-user access scoping
+- **Admin Controls** — Admin-only audit event listing and plugin management; per-user access scoping
 - **Password Management** — Change password with current password verification
 
 ### Deployment & Operations
@@ -99,7 +114,7 @@ Browser (xterm.js)
     │  HTTPS / WSS
     ▼
 FastAPI Backend
-    ├── REST API (auth, sessions, files, settings, audit)
+    ├── REST API (auth, sessions, files, settings, audit, plugins)
     └── WebSocket Handler (binary protocol)
             │
             ▼
@@ -122,6 +137,7 @@ FastAPI Backend
 | Database | SQLite (default), PostgreSQL supported           |
 | Auth     | JWT (HS256), bcrypt password hashing             |
 | i18n     | vue-i18n with browser locale auto-detection      |
+| Plugins  | `.mtpx` zip packages, manifest-driven frontend runtime |
 
 ## Quick Start
 
@@ -164,6 +180,7 @@ Use `sudo -E ./deploy.sh` for production local-user terminal sessions.
 ./deploy.sh --logs       # Tail server logs
 ./deploy.sh --update     # Pull latest code and redeploy
 ./deploy.sh --docker     # Deploy via Docker Compose
+./deploy.sh --local-test # Start hot-reload backend + frontend servers
 ./deploy.sh --help       # Show all commands
 ```
 
@@ -205,6 +222,7 @@ sudo journalctl -u mebtty -f     # View logs
 | `/etc/mebtty/mebtty.env`          | Environment config (auto-generated)  |
 | `/var/lib/mebtty/mebtty.db`       | SQLite database                      |
 | `/var/lib/mebtty/uploads`         | Uploaded files                       |
+| `/var/lib/mebtty/plugins`         | Installed third-party plugins        |
 
 ```bash
 # Uninstall (removes service and binary, keeps data and config)
@@ -234,10 +252,16 @@ All settings are configured via environment variables (prefix: `MEBTTY_`):
 | `MEBTTY_ACCESS_TOKEN_EXPIRE_MINUTES`   | `60`                                   | JWT access token lifetime                    |
 | `MEBTTY_REFRESH_TOKEN_EXPIRE_DAYS`     | `7`                                    | JWT refresh token lifetime                   |
 | `MEBTTY_MAX_UPLOAD_SIZE`               | `104857600`                            | Max upload size in bytes (100MB)             |
+| `MEBTTY_REGISTRATION_ENABLED`          | `true`                                 | Allow creating new MebTTY web accounts       |
 | `MEBTTY_HOST`                          | `0.0.0.0`                              | Server bind address                          |
 | `MEBTTY_PORT`                          | `18888`                                | Server listen port                           |
 | `MEBTTY_ALLOW_ROOT_LOCAL_USER`         | `false`                                | Allow selecting `root` as a local terminal user |
 | `MEBTTY_PAM_SERVICE`                   | `login`                                | PAM service used to verify local user passwords |
+| `MEBTTY_PLUGIN_DIR`                    | `./plugins`                            | Directory where uploaded plugins are installed |
+| `MEBTTY_PLUGIN_MAX_SIZE`               | `20971520`                             | Max `.mtpx` package size and expanded size in bytes |
+| `MEBTTY_PLUGIN_INSTALL_ENABLED`        | `true`                                 | Allow installing third-party plugins through API/UI |
+| `MEBTTY_PLUGIN_SIGNATURE_REQUIRED`     | `false`                                | Reserved flag for signature enforcement       |
+| `MEBTTY_PLUGIN_BACKEND_CODE_ENABLED`   | `false`                                | Reserved flag for trusted backend plugin code |
 
 When installed as a system service, the web application starts as root. When creating a terminal, users enter a local username and password. After PAM authentication succeeds, the terminal process drops privileges to that local user and defaults to that user's home directory when no working directory is provided.
 
@@ -275,6 +299,11 @@ mebtty/
 │   │   │   └── router.py        #   WebSocket endpoint registration
 │   │   ├── file/                # File management module
 │   │   │   └── router.py        #   Browse, upload, download, mkdir, rename, delete
+│   │   ├── plugins/             # Plugin manifests, installer, registry, API
+│   │   │   ├── builtin.py       #   Built-in plugin registration
+│   │   │   ├── installer.py     #   .mtpx upload validation and installation
+│   │   │   ├── manager.py       #   Plugin lifecycle helpers
+│   │   │   └── router.py        #   Plugin API and asset serving
 │   │   ├── settings/            # User settings module
 │   │   │   └── router.py        #   Get/update user preferences
 │   │   └── audit/               # Audit logging module
@@ -306,8 +335,11 @@ mebtty/
 │   │   │   │   ├── TerminalTabs.vue   # Multi-tab UI
 │   │   │   │   ├── FileBrowser.vue    # Sidebar file explorer
 │   │   │   │   └── FileEditorPane.vue # File preview and text editor
+│   │   │   ├── plugins/         #   Plugin panel and settings hosts
 │   │   │   └── common/
 │   │   │       └── ThemeToggle.vue    # Theme mode switcher
+│   │   ├── plugins/
+│   │   │   └── registry.js      # Frontend plugin runtime
 │   │   ├── views/               # Page-level components
 │   │   │   ├── LoginView.vue
 │   │   │   ├── HomeView.vue
@@ -325,6 +357,14 @@ mebtty/
 │   │   ├── DEBIAN/              #   DEBIAN metadata (control, postinst, etc.)
 │   │   ├── build-deb.sh         #   Local deb build script
 │   │   └── README.md
+│   └── aur/                     # AUR package files
+│       ├── PKGBUILD
+│       ├── mebtty.install
+│       ├── mebtty.tmpfiles
+│       └── README.md
+├── docs/
+│   ├── plugin-system.md         # Plugin package and frontend API guide
+│   └── release.md               # Branch, release, tag, and AUR workflow
 ├── Dockerfile                   # Multi-stage Docker build
 ├── docker-compose.yml           # Docker Compose configuration
 ├── deploy.sh                    # One-click deployment script
@@ -407,6 +447,18 @@ The terminal uses a custom binary protocol for efficiency:
 | GET    | `/api/settings`  | Get user settings            |
 | PUT    | `/api/settings`  | Update user settings         |
 
+### Plugins
+
+| Method | Endpoint                                  | Description                              |
+| ------ | ----------------------------------------- | ---------------------------------------- |
+| GET    | `/api/plugins`                            | List installed built-in and third-party plugins |
+| GET    | `/api/plugins/{plugin_id}`                | Get one plugin                           |
+| POST   | `/api/plugins/install`                    | Install or update an `.mtpx` package (admin only) |
+| POST   | `/api/plugins/{plugin_id}/enable`         | Enable a plugin (admin only)             |
+| POST   | `/api/plugins/{plugin_id}/disable`        | Disable a plugin (admin only)            |
+| DELETE | `/api/plugins/{plugin_id}`                | Delete a third-party plugin (admin only) |
+| GET    | `/api/plugins/{plugin_id}/assets/{path}`  | Serve enabled third-party plugin assets  |
+
 ### Audit
 
 | Method | Endpoint                            | Description                         |
@@ -423,6 +475,13 @@ The terminal uses a custom binary protocol for efficiency:
 
 ## Development
 
+The repository uses a release-oriented branch model:
+
+- `develop` is the integration branch for ongoing development.
+- `master` is reserved for release-ready code and tagged versions.
+- Feature branches should branch from `develop` and merge back into `develop`.
+- Release tags (`vX.Y.Z` or `vX.Y.Z.dev`) must point to commits reachable from `master`.
+
 ```bash
 # Terminal 1: Backend with hot reload
 cd backend
@@ -435,6 +494,14 @@ npm run dev
 ```
 
 The frontend dev server runs on `http://localhost:3000` and proxies `/api` requests to the backend.
+
+The deployment script also provides a local hot-reload mode:
+
+```bash
+./deploy.sh --local-test
+```
+
+See [`docs/plugin-system.md`](docs/plugin-system.md) for plugin development and package format details. See [`docs/release.md`](docs/release.md) for the release, tag, package, and AUR publishing workflow.
 
 ## Open Source & Third-Party Notices
 

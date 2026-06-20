@@ -26,8 +26,9 @@ pkg/deb/
 ### `DEBIAN/postinst`
 
 安装完成后自动执行：
-- 创建数据目录 `/var/lib/mebtty/uploads`
+- 创建数据目录 `/var/lib/mebtty/uploads` 和 `/var/lib/mebtty/plugins`
 - 生成随机密钥并写入 `/etc/mebtty/mebtty.env`（如不存在）
+- 向已有环境变量文件补充带注释的可选配置项
 - 启用并启动 systemd 服务
 
 ### `DEBIAN/prerm`
@@ -95,8 +96,35 @@ sudo dpkg -r mebtty
 sudo dpkg -P mebtty
 ```
 
+常用路径：
+
+| 路径 | 用途 |
+| ---- | ---- |
+| `/usr/local/bin/mebtty` | 已安装的可执行文件 |
+| `/etc/mebtty/mebtty.env` | 环境变量配置文件 |
+| `/var/lib/mebtty/mebtty.db` | SQLite 数据库 |
+| `/var/lib/mebtty/uploads` | 上传文件与头像 |
+| `/var/lib/mebtty/plugins` | 已安装的第三方插件 |
+
+修改 `/etc/mebtty/mebtty.env` 后需要重启服务：
+
+```bash
+sudo systemctl restart mebtty
+```
+
+插件相关配置项包括：
+
+```bash
+# MEBTTY_PLUGIN_DIR=/var/lib/mebtty/plugins
+# MEBTTY_PLUGIN_MAX_SIZE=20971520
+# MEBTTY_PLUGIN_INSTALL_ENABLED=true
+# MEBTTY_PLUGIN_SIGNATURE_REQUIRED=false
+# MEBTTY_PLUGIN_BACKEND_CODE_ENABLED=false
+```
+
 ## 相关文件
 
 - `.github/workflows/release.yml` — CI 发布流程
 - `mebtty.service` — systemd 服务定义（打包时复制到 `/lib/systemd/system/`）
 - `build.sh` — 构建可执行文件的脚本
+- `docs/release.md` — 分支、发布、tag 和 AUR 流程说明
