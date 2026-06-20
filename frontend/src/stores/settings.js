@@ -142,9 +142,9 @@ export const useSettingsStore = defineStore('settings', {
         this.saveLocalSettings()
         this.loaded = true
         this.applyThemeColors()
-      } catch {
-        // Use defaults if fetch fails
-        this.loaded = true
+      } catch (err) {
+        // Unauthenticated startup can happen on the login page; fetch again after login.
+        this.loaded = err?.response?.status !== 401
         this.applyThemeColors()
       }
     },
