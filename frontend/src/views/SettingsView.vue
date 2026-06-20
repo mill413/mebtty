@@ -598,21 +598,6 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div v-if="pluginSettingsSections.length" class="setting-row setting-row-column">
-            <div class="setting-info">
-              <h3>{{ t('settings.pluginSettings') }}</h3>
-              <p>{{ t('settings.pluginSettingsDesc') }}</p>
-            </div>
-            <div class="setting-control-full">
-              <div class="plugin-settings-list">
-                <PluginSettingsSectionHost
-                  v-for="section in pluginSettingsSections"
-                  :key="section.key"
-                  :section="section"
-                />
-              </div>
-            </div>
-          </div>
         </section>
 
         <section class="settings-section" :ref="(el) => setSectionRef('terminal', el)">
@@ -841,6 +826,22 @@ function pluginPermissionLabel(permission) {
               <p v-if="!canManagePlugins" class="plugin-empty">{{ t('settings.pluginAdminRequired') }}</p>
               <p v-if="pluginsError" class="msg-error">{{ pluginsError }}</p>
               <p v-if="pluginsMessage" class="msg-success">{{ pluginsMessage }}</p>
+            </div>
+          </div>
+
+          <div v-if="pluginSettingsSections.length" class="setting-row setting-row-column">
+            <div class="setting-info">
+              <h3>{{ t('settings.pluginSettings') }}</h3>
+              <p>{{ t('settings.pluginSettingsDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div class="plugin-settings-list">
+                <PluginSettingsSectionHost
+                  v-for="section in pluginSettingsSections"
+                  :key="section.key"
+                  :section="section"
+                />
+              </div>
             </div>
           </div>
 
