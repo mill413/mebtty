@@ -145,6 +145,8 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 18888
 
 打开 `http://localhost:18888` 并注册第一个账户。
 
+如果需要创建本地用户终端，请以 root 启动后端。
+
 ### Shell 脚本
 
 ```bash
@@ -153,6 +155,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 18888
 
 这会自动安装依赖、构建前端并在端口 18888 启动服务器。
 修改代码后可以直接重复运行该命令，脚本会替换当前正在运行的实例。
+生产环境需要本地用户终端时，请使用 `sudo -E ./deploy.sh`。
 
 ```bash
 ./deploy.sh --status     # 查看服务器状态
@@ -186,7 +189,7 @@ docker compose up -d
 sudo ./install.sh
 ```
 
-安装后，MebTTY 作为受管理的 systemd 服务运行，带有安全加固（`ProtectSystem=strict`、`NoNewPrivileges`、`PrivateTmp`）和故障自动重启。
+安装后，MebTTY 作为受管理的 systemd 服务运行。服务以 root 启动，以便通过 PAM 认证本地用户，并像 `sshd` / `login` 一样把终端会话降权到所选本地用户的 uid/gid。
 
 ```bash
 sudo systemctl start mebtty      # 启动服务
@@ -208,6 +211,15 @@ sudo journalctl -u mebtty -f     # 查看日志
 sudo ./install.sh --uninstall
 ```
 
+### Arch Linux（AUR）
+
+```bash
+yay -S mebtty
+sudo systemctl enable --now mebtty
+```
+
+AUR 包会安装 `mebtty` systemd 服务。包安装过程中不会自动启动服务。
+
 ## 配置说明
 
 所有设置通过环境变量配置（前缀：`MEBTTY_`）：
@@ -224,13 +236,17 @@ sudo ./install.sh --uninstall
 | `MEBTTY_MAX_UPLOAD_SIZE`             | `104857600`                        | 最大上传大小（字节，100MB）          |
 | `MEBTTY_HOST`                        | `0.0.0.0`                          | 服务器绑定地址                       |
 | `MEBTTY_PORT`                        | `18888`                            | 服务器监听端口                       |
+| `MEBTTY_ALLOW_ROOT_LOCAL_USER`       | `false`                            | 是否允许选择 `root` 作为本地终端用户 |
+| `MEBTTY_PAM_SERVICE`                 | `login`                            | 校验本地用户密码时使用的 PAM service |
+
+作为 systemd 服务安装时，Web 应用以 root 启动。创建终端时，用户需要输入本地用户名和密码。PAM 认证通过后，终端进程会降权到该本地用户；如果未填写工作目录，则默认进入该用户的家目录。
 
 ### 生产环境示例
 
 ```bash
 export MEBTTY_SECRET_KEY="your-random-secret-string"
 export MEBTTY_DATABASE_URL="sqlite+aiosqlite:////data/mebtty.db"
-./deploy.sh
+sudo -E ./deploy.sh
 ```
 
 ## 项目结构

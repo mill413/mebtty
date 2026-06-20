@@ -145,6 +145,8 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 18888
 
 Open `http://localhost:18888` and register your first account.
 
+Run the backend as root when you need local-user terminal sessions.
+
 ### Shell Script
 
 ```bash
@@ -153,6 +155,7 @@ Open `http://localhost:18888` and register your first account.
 
 This will automatically install dependencies, build the frontend and start the server on port 18888.
 It is safe to run repeatedly after code changes; the script replaces the currently running instance.
+Use `sudo -E ./deploy.sh` for production local-user terminal sessions.
 
 ```bash
 ./deploy.sh --status     # Check server status
@@ -186,7 +189,7 @@ Build a single self-contained binary that includes both the backend and the fron
 sudo ./install.sh
 ```
 
-After installation, MebTTY runs as a managed systemd service with security hardening (`ProtectSystem=strict`, `NoNewPrivileges`, `PrivateTmp`) and automatic restart on failure.
+After installation, MebTTY runs as a managed systemd service. The service starts as root so it can authenticate local users with PAM and drop terminal sessions to the selected user's uid/gid, similar to `sshd` and `login`.
 
 ```bash
 sudo systemctl start mebtty      # Start the service
@@ -210,7 +213,12 @@ sudo ./install.sh --uninstall
 
 ### Arch Linux (AUR)
 
-> **Note**: AUR package support has been removed. For Arch Linux, please use the standalone executable or Docker.
+```bash
+yay -S mebtty
+sudo systemctl enable --now mebtty
+```
+
+The AUR package installs the `mebtty` system service. It does not start the service automatically during package installation.
 
 ## Configuration
 
@@ -228,13 +236,17 @@ All settings are configured via environment variables (prefix: `MEBTTY_`):
 | `MEBTTY_MAX_UPLOAD_SIZE`               | `104857600`                            | Max upload size in bytes (100MB)             |
 | `MEBTTY_HOST`                          | `0.0.0.0`                              | Server bind address                          |
 | `MEBTTY_PORT`                          | `18888`                                | Server listen port                           |
+| `MEBTTY_ALLOW_ROOT_LOCAL_USER`         | `false`                                | Allow selecting `root` as a local terminal user |
+| `MEBTTY_PAM_SERVICE`                   | `login`                                | PAM service used to verify local user passwords |
+
+When installed as a system service, the web application starts as root. When creating a terminal, users enter a local username and password. After PAM authentication succeeds, the terminal process drops privileges to that local user and defaults to that user's home directory when no working directory is provided.
 
 ### Production Example
 
 ```bash
 export MEBTTY_SECRET_KEY="your-random-secret-string"
 export MEBTTY_DATABASE_URL="sqlite+aiosqlite:////data/mebtty.db"
-./deploy.sh
+sudo -E ./deploy.sh
 ```
 
 ## Project Structure

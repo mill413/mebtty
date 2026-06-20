@@ -1,6 +1,8 @@
 import logging
+import os
 import shutil
 
+from app.local_users import LocalUser
 from app.terminal.host_runtime import HostRuntime
 from app.terminal.runtime import Runtime
 
@@ -9,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 def _resolve_shell(shell: str) -> str:
     """Resolve shell name to full path."""
+    if not shell:
+        return "/bin/sh"
     if "/" in shell:
         return shell
     resolved = shutil.which(shell)
@@ -16,7 +20,6 @@ def _resolve_shell(shell: str) -> str:
         return resolved
     # Fallback: try common locations
     for path in [f"/bin/{shell}", f"/usr/bin/{shell}"]:
-        import os
         if os.path.isfile(path) and os.access(path, os.X_OK):
             return path
     # Ultimate fallback
@@ -40,6 +43,7 @@ class RuntimeManager:
         cols: int,
         rows: int,
         cwd: str | None = None,
+        local_user: LocalUser | None = None,
     ) -> Runtime:
         if session_id in self._runtimes:
             existing = self._runtimes[session_id]
@@ -50,9 +54,15 @@ class RuntimeManager:
             # Clean up dead runtime
             await self.destroy_runtime(session_id)
 
-        resolved_shell = _resolve_shell(shell)
+        resolved_shell = _resolve_shell(shell or (local_user.shell if local_user else ""))
         runtime = HostRuntime()
-        await runtime.start(shell=resolved_shell, cols=cols, rows=rows, cwd=cwd)
+        await runtime.start(
+            shell=resolved_shell,
+            cols=cols,
+            rows=rows,
+            cwd=cwd,
+            local_user=local_user,
+        )
         self._runtimes[session_id] = runtime
         logger.info("Created runtime for session '%s'", session_id)
         return runtime

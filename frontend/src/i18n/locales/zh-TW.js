@@ -29,10 +29,15 @@ export default {
     logout: '登出',
     newSession: '新建終端機工作階段',
     shell: 'Shell',
+    localUsername: '本地使用者名稱',
+    localUsernamePlaceholder: '本地系統使用者',
+    localPassword: '本地使用者密碼',
+    localPasswordPlaceholder: '該本地使用者的密碼',
+    localLoginFailed: '登入本地使用者失敗',
     titleOptional: '標題（選填）',
     titlePlaceholder: '我的終端機',
     cwdOptional: '工作目錄（選填）',
-    cwdPlaceholder: '/home/user',
+    cwdPlaceholder: '留空則使用本地使用者家目錄',
     cancel: '取消',
     create: '建立',
     creating: '建立中...',
@@ -73,7 +78,12 @@ export default {
   },
   tabs: {
     close: '關閉',
-    newTerminal: '新建終端機'
+    newTerminal: '新建終端機',
+    rename: '重新命名',
+    icon: '圖示',
+    changeIcon: '更改圖示...',
+    searchIcon: '搜尋圖示',
+    noIcons: '找不到圖示'
   },
   fileBrowser: {
     explorer: '檔案總管',

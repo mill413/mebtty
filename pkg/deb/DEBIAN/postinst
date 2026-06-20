@@ -6,9 +6,12 @@ ENV_FILE="/etc/mebtty/mebtty.env"
 
 # Create data directories
 mkdir -p "$DATA_DIR/uploads"
+chown -R root:root "$DATA_DIR"
+chmod 750 "$DATA_DIR" "$DATA_DIR/uploads"
 
 # Generate environment config with random secret key if not exists
 if [ ! -f "$ENV_FILE" ]; then
+    install -d -m 750 -o root -g root "$(dirname "$ENV_FILE")"
     SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))' 2>/dev/null || openssl rand -hex 32)
     cat > "$ENV_FILE" <<EOF
 # MebTTY environment configuration
@@ -17,8 +20,14 @@ if [ ! -f "$ENV_FILE" ]; then
 MEBTTY_SECRET_KEY=$SECRET
 MEBTTY_HOST=0.0.0.0
 MEBTTY_PORT=18888
+MEBTTY_PAM_SERVICE=login
 EOF
-    chmod 600 "$ENV_FILE"
+    chown root:root "$ENV_FILE"
+    chmod 640 "$ENV_FILE"
+else
+    chown root:root "$(dirname "$ENV_FILE")" "$ENV_FILE"
+    chmod 750 "$(dirname "$ENV_FILE")"
+    chmod 640 "$ENV_FILE"
 fi
 
 # Enable and start systemd service
@@ -33,6 +42,7 @@ echo "  MebTTY installed successfully!"
 echo ""
 echo "  Config:     $ENV_FILE"
 echo "  Data:       $DATA_DIR"
+echo "  Service:    root user"
 echo "  Web UI:     http://localhost:18888"
 echo ""
 echo "  systemctl start mebtty"

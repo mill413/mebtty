@@ -11,6 +11,7 @@ import struct
 import termios
 from typing import AsyncIterator
 
+from app.local_users import LocalUser
 from app.terminal.runtime import Runtime
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ class HostRuntime(Runtime):
     def __init__(self) -> None:
         self._master_fd: int | None = None
         self._pid: int | None = None
+        self._username: str | None = None
         self._alive: bool = False
         self._read_queue: asyncio.Queue[bytes | None] = asyncio.Queue()
         self._read_task: asyncio.Task | None = None
@@ -31,16 +33,36 @@ class HostRuntime(Runtime):
         rows: int = 24,
         cwd: str | None = None,
         env: dict | None = None,
+        local_user: LocalUser | None = None,
     ) -> None:
         if self._alive:
             raise RuntimeError("Runtime is already running")
 
-        # Build environment for the shell
-        try:
-            username = getpass.getuser()
-        except Exception:
-            username = os.environ.get("USER", "user")
-        home = os.environ.get("HOME", pwd.getpwuid(os.getuid()).pw_dir)
+        if local_user is None:
+            try:
+                username = getpass.getuser()
+            except Exception:
+                username = os.environ.get("USER", "user")
+            uid = os.getuid()
+            gid = os.getgid()
+            home = os.environ.get("HOME", pwd.getpwuid(uid).pw_dir)
+        else:
+            username = local_user.username
+            uid = local_user.uid
+            gid = local_user.gid
+            home = local_user.home
+
+        current_uid = os.getuid()
+        needs_user_switch = uid != current_uid
+        if needs_user_switch and current_uid != 0:
+            current_username = pwd.getpwuid(current_uid).pw_name
+            raise PermissionError(
+                "Cannot start terminal as local user "
+                f"'{username}' from current process user '{current_username}'. "
+                "Run MebTTY as root to create terminals for local users."
+            )
+
+        self._username = username
 
         child_env = os.environ.copy()
         child_env.update({
@@ -94,6 +116,10 @@ class HostRuntime(Runtime):
 
         if pid == 0:
             # Child process
+            if needs_user_switch:
+                os.initgroups(username, gid)
+                os.setgid(gid)
+                os.setuid(uid)
             os.chdir(effective_cwd)
             # Start as login shell: argv[0] prefixed with '-'
             login_name = "-" + os.path.basename(shell)
@@ -201,6 +227,30 @@ class HostRuntime(Runtime):
         except OSError:
             return None
 
+    def current_username(self) -> str | None:
+        foreground_pgid = self._foreground_pgid()
+        if foreground_pgid is not None:
+            foreground_pid = self._pid_for_group(foreground_pgid)
+            if foreground_pid is not None:
+                username = self._username_for_pid(foreground_pid)
+                if username:
+                    return username
+        return self._username
+
+    def current_process_name(self) -> str | None:
+        if self._pid is None:
+            return None
+
+        foreground_pgid = self._foreground_pgid()
+        if foreground_pgid is not None:
+            foreground_pid = self._pid_for_group(foreground_pgid)
+            if foreground_pid is not None:
+                process_name = self._process_name(foreground_pid)
+                if process_name:
+                    return process_name
+
+        return self._process_name(self._pid)
+
     @property
     def is_alive(self) -> bool:
         if not self._alive or self._pid is None:
@@ -214,6 +264,103 @@ class HostRuntime(Runtime):
         except ChildProcessError:
             self._alive = False
             return False
+
+    def _foreground_pgid(self) -> int | None:
+        if self._master_fd is None:
+            return None
+        try:
+            pgid = os.tcgetpgrp(self._master_fd)
+            return pgid if pgid > 0 else None
+        except OSError:
+            return None
+
+    def _pid_for_group(self, pgid: int) -> int | None:
+        candidates: list[tuple[bool, int, int]] = []
+        try:
+            proc_entries = os.listdir("/proc")
+        except OSError:
+            return None
+
+        for entry in proc_entries:
+            if not entry.isdigit():
+                continue
+            pid = int(entry)
+            stat = self._process_stat(pid)
+            if stat is None or stat["pgrp"] != pgid:
+                continue
+            candidates.append((pid == self._pid, stat["start_time"], pid))
+
+        if not candidates:
+            return None
+
+        candidates.sort(key=lambda item: (item[0], -item[1]))
+        return candidates[0][2]
+
+    def _process_stat(self, pid: int) -> dict[str, int] | None:
+        try:
+            with open(f"/proc/{pid}/stat", "r", encoding="utf-8") as stat_file:
+                text = stat_file.read()
+            fields = text.rsplit(")", 1)[1].strip().split()
+            return {
+                "pgrp": int(fields[2]),
+                "start_time": int(fields[19]),
+            }
+        except (OSError, IndexError, ValueError):
+            return None
+
+    def _process_name(self, pid: int) -> str | None:
+        command_line = self._process_command_line(pid)
+        if command_line:
+            detected_agent = self._detect_agent_process(command_line)
+            if detected_agent:
+                return detected_agent
+
+            command = os.path.basename(command_line[0])
+            if command:
+                return command
+
+        try:
+            with open(f"/proc/{pid}/comm", "r", encoding="utf-8") as comm_file:
+                return comm_file.read().strip()
+        except OSError:
+            return None
+
+    def _process_command_line(self, pid: int) -> list[str]:
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as cmdline_file:
+                raw = cmdline_file.read()
+        except OSError:
+            return []
+
+        return [
+            part.decode("utf-8", errors="ignore")
+            for part in raw.split(b"\0")
+            if part
+        ]
+
+    def _detect_agent_process(self, command_line: list[str]) -> str | None:
+        normalized = " ".join(command_line).lower()
+        agent_markers = [
+            ("codex-linux-sandbox", "codex"),
+            ("codex", "codex"),
+            ("claude-code", "claude-code"),
+            ("claudecode", "claude-code"),
+            ("claude", "claude-code"),
+            ("anthropic", "claude-code"),
+            ("openai", "codex"),
+            ("chatgpt", "codex"),
+        ]
+        for marker, process_name in agent_markers:
+            if marker in normalized:
+                return process_name
+        return None
+
+    def _username_for_pid(self, pid: int) -> str | None:
+        try:
+            uid = os.stat(f"/proc/{pid}").st_uid
+            return pwd.getpwuid(uid).pw_name
+        except (OSError, KeyError):
+            return None
 
     def _set_winsize(self, cols: int, rows: int) -> None:
         if self._master_fd is None:

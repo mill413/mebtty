@@ -21,11 +21,13 @@ export const useTerminalStore = defineStore('terminal', {
   },
 
   actions: {
-    async createSession(shell = '/bin/bash', title = '', cwd = '') {
+    async createSession(shell = '/bin/bash', title = '', cwd = '', localUser = '', localPassword = '') {
       const { data } = await api.post('/api/sessions', {
         title: title || `${shell.split('/').pop()} session`,
         shell,
-        cwd
+        cwd,
+        local_user: localUser,
+        local_password: localPassword
       })
       const tabId = ++tabIdCounter
       this.tabs.push({
@@ -35,6 +37,8 @@ export const useTerminalStore = defineStore('terminal', {
         shell: shell,
         cwd: cwd || data.cwd || '',
         username: data.username || '',
+        processName: data.process || '',
+        iconOverride: null,
         status: 'running'
       })
       this.activeTabId = tabId
@@ -131,6 +135,8 @@ export const useTerminalStore = defineStore('terminal', {
         shell: shell || '/bin/bash',
         cwd,
         username,
+        processName: '',
+        iconOverride: null,
         status: 'running'
       })
       this.activeTabId = tabId
@@ -148,6 +154,26 @@ export const useTerminalStore = defineStore('terminal', {
 
       const session = this.sessions.find((s) => s.id === sessionId)
       if (session) session.cwd = cwd
+    },
+
+    updateTabRuntimeStatus(sessionId, status = {}) {
+      const tab = this.tabs.find((t) => t.sessionId === sessionId)
+      if (tab) {
+        if (typeof status.cwd === 'string' && status.cwd) tab.cwd = status.cwd
+        if (typeof status.username === 'string' && status.username) tab.username = status.username
+        if (typeof status.process === 'string') tab.processName = status.process
+      }
+
+      const session = this.sessions.find((s) => s.id === sessionId)
+      if (session) {
+        if (typeof status.cwd === 'string' && status.cwd) session.cwd = status.cwd
+        if (typeof status.username === 'string' && status.username) session.username = status.username
+      }
+    },
+
+    setTabIcon(tabId, icon) {
+      const tab = this.tabs.find((t) => t.id === tabId)
+      if (tab) tab.iconOverride = icon || null
     },
 
     async fetchSessions() {

@@ -18,6 +18,7 @@ a = Analysis(
     hiddenimports=[
         # MebTTY app modules (not statically imported from bundle_entry.py)
         'app',
+        'app.local_users',
         'app.main',
         'app.config',
         'app.database',

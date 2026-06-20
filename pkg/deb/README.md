@@ -97,6 +97,6 @@ sudo dpkg -P mebtty
 
 ## 相关文件
 
-- `.github/workflows/build-deb.yml` — CI 构建流程
+- `.github/workflows/release.yml` — CI 发布流程
 - `mebtty.service` — systemd 服务定义（打包时复制到 `/lib/systemd/system/`）
 - `build.sh` — 构建可执行文件的脚本

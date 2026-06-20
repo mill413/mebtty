@@ -108,7 +108,7 @@ build_executable() {
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}  Build complete!${NC}"
     echo -e "${CYAN}  Executable: build/mebtty ($size)${NC}"
-    echo -e "${CYAN}  Run:        ./build/mebtty${NC}"
+    echo -e "${CYAN}  Run:        sudo ./build/mebtty${NC}"
     echo -e "${CYAN}  Install:    sudo ./install.sh${NC}"
     echo -e "${CYAN}========================================${NC}"
 }

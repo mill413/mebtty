@@ -42,6 +42,7 @@ class SessionCreate(BaseModel):
     title: str = ""
     shell: str = "bash"
     cwd: Optional[str] = None
+    local_user: Optional[str] = None
 
 
 class SessionResponse(BaseModel):
@@ -51,6 +52,7 @@ class SessionResponse(BaseModel):
     user_id: str
     title: str
     shell: str
+    local_user: Optional[str] = None
     runtime_type: str
     status: str
     cols: int

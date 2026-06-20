@@ -40,6 +40,7 @@ class Session(Base):
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(256), default="", nullable=False)
     shell = Column(String(64), default="bash", nullable=False)
+    local_user = Column(String(64), nullable=True)
     runtime_type = Column(String(32), default="host", nullable=False)
     status = Column(
         String(16),

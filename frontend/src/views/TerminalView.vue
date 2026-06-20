@@ -61,6 +61,9 @@ const showShellDialog = ref(false)
 const selectedShell = ref('')
 const sessionTitle = ref('')
 const sessionCwd = ref('')
+const localUsername = ref('')
+const localPassword = ref('')
+const createError = ref('')
 const creating = ref(false)
 
 const isSettingsTab = computed(() => terminalStore.activeTab?.type === 'settings')
@@ -145,6 +148,7 @@ watch(
   [
     () => terminalStore.activeTab,
     () => terminalStore.activeTab?.cwd,
+    () => terminalStore.activeTab?.username,
     () => settingsStore.tabTitleFormat
   ],
   ([tab]) => {
@@ -198,6 +202,10 @@ function handleTabRename(tabId, title) {
   terminalStore.renameTab(tabId, title)
 }
 
+function handleTabIconChange(tabId, icon) {
+  terminalStore.setTabIcon(tabId, icon)
+}
+
 function handleResize(dims) {
   terminalDims.value = dims
 }
@@ -209,6 +217,12 @@ function handleConnectionChange(status) {
 function handleCwdChange({ sessionId, cwd }) {
   if (sessionId && cwd) {
     terminalStore.updateTabCwd(sessionId, cwd)
+  }
+}
+
+function handleRuntimeStatus(status) {
+  if (status.sessionId) {
+    terminalStore.updateTabRuntimeStatus(status.sessionId, status)
   }
 }
 
@@ -243,13 +257,22 @@ function openSettings() {
 }
 
 async function createNewSession() {
+  createError.value = ''
   creating.value = true
   try {
-    await terminalStore.createSession(selectedShell.value, sessionTitle.value, sessionCwd.value)
+    await terminalStore.createSession(
+      selectedShell.value,
+      sessionTitle.value,
+      sessionCwd.value,
+      localUsername.value.trim(),
+      localPassword.value
+    )
     showShellDialog.value = false
     sessionTitle.value = ''
     sessionCwd.value = ''
+    localPassword.value = ''
   } catch (err) {
+    createError.value = err.response?.data?.detail || t('home.localLoginFailed')
     console.error('Failed to create session:', err)
   } finally {
     creating.value = false
@@ -286,6 +309,7 @@ function logout() {
           @switch="handleTabSwitch"
           @close="handleTabClose"
           @rename="handleTabRename"
+          @icon-change="handleTabIconChange"
           @new-tab="handleNewTerminal"
         />
       </div>
@@ -382,6 +406,7 @@ function logout() {
             @resize="handleResize"
             @connection-change="handleConnectionChange"
             @cwd-change="handleCwdChange"
+            @status-change="handleRuntimeStatus"
           />
         </KeepAlive>
         <!-- Welcome / empty state -->
@@ -512,6 +537,27 @@ function logout() {
           </div>
 
           <div class="form-group">
+            <label>{{ t('home.localUsername') }}</label>
+            <input
+              v-model="localUsername"
+              type="text"
+              autocomplete="username"
+              :placeholder="t('home.localUsernamePlaceholder')"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>{{ t('home.localPassword') }}</label>
+            <input
+              v-model="localPassword"
+              type="password"
+              autocomplete="current-password"
+              :placeholder="t('home.localPasswordPlaceholder')"
+              @keyup.enter="createNewSession"
+            />
+          </div>
+
+          <div class="form-group">
             <label>{{ t('home.titleOptional') }}</label>
             <input v-model="sessionTitle" type="text" :placeholder="t('home.titlePlaceholder')" />
           </div>
@@ -521,9 +567,11 @@ function logout() {
             <input v-model="sessionCwd" type="text" :placeholder="t('home.cwdPlaceholder')" />
           </div>
 
+          <p v-if="createError" class="dialog-error">{{ createError }}</p>
+
           <div class="dialog-actions">
             <button class="btn-secondary" @click="showShellDialog = false">{{ t('home.cancel') }}</button>
-            <button class="btn-primary" @click="createNewSession" :disabled="creating">
+            <button class="btn-primary" @click="createNewSession" :disabled="creating || !localUsername || !localPassword">
               {{ creating ? t('home.creating') : t('home.create') }}
             </button>
           </div>
@@ -874,6 +922,16 @@ function logout() {
 
 .form-group input:focus {
   border-color: var(--accent);
+}
+
+.dialog-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--error) 35%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+  color: var(--error);
+  font-size: 13px;
 }
 
 .shell-grid {

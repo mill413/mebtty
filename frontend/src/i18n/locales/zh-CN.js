@@ -29,10 +29,15 @@ export default {
     logout: '退出登录',
     newSession: '新建终端会话',
     shell: 'Shell',
+    localUsername: '本地用户名',
+    localUsernamePlaceholder: '本地系统用户',
+    localPassword: '本地用户密码',
+    localPasswordPlaceholder: '该本地用户的密码',
+    localLoginFailed: '登录本地用户失败',
     titleOptional: '标题（可选）',
     titlePlaceholder: '我的终端',
     cwdOptional: '工作目录（可选）',
-    cwdPlaceholder: '/home/user',
+    cwdPlaceholder: '留空则使用本地用户家目录',
     cancel: '取消',
     create: '创建',
     creating: '创建中...',
@@ -73,7 +78,12 @@ export default {
   },
   tabs: {
     close: '关闭',
-    newTerminal: '新建终端'
+    newTerminal: '新建终端',
+    rename: '重命名',
+    icon: '图标',
+    changeIcon: '更改图标...',
+    searchIcon: '搜索图标',
+    noIcons: '没有找到图标'
   },
   fileBrowser: {
     explorer: '资源管理器',

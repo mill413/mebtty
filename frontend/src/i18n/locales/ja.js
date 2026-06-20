@@ -29,10 +29,15 @@ export default {
     logout: 'ログアウト',
     newSession: '新しいターミナルセッション',
     shell: 'シェル',
+    localUsername: 'ローカルユーザー名',
+    localUsernamePlaceholder: 'ローカルシステムユーザー',
+    localPassword: 'ローカルユーザーパスワード',
+    localPasswordPlaceholder: 'ローカルユーザーのパスワード',
+    localLoginFailed: 'ローカルユーザーへのログインに失敗しました',
     titleOptional: 'タイトル（任意）',
     titlePlaceholder: 'マイターミナル',
     cwdOptional: '作業ディレクトリ（任意）',
-    cwdPlaceholder: '/home/user',
+    cwdPlaceholder: '空欄の場合はローカルユーザーのホームを使用',
     cancel: 'キャンセル',
     create: '作成',
     creating: '作成中...',
@@ -73,7 +78,12 @@ export default {
   },
   tabs: {
     close: '閉じる',
-    newTerminal: '新しいターミナル'
+    newTerminal: '新しいターミナル',
+    rename: '名前を変更',
+    icon: 'アイコン',
+    changeIcon: 'アイコンを変更...',
+    searchIcon: 'アイコンを検索',
+    noIcons: 'アイコンが見つかりません'
   },
   fileBrowser: {
     explorer: 'エクスプローラー',

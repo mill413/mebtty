@@ -29,10 +29,15 @@ export default {
     logout: 'Logout',
     newSession: 'New Terminal Session',
     shell: 'Shell',
+    localUsername: 'Local Username',
+    localUsernamePlaceholder: 'Local system user',
+    localPassword: 'Local Password',
+    localPasswordPlaceholder: 'Password for the local user',
+    localLoginFailed: 'Failed to log in to local user',
     titleOptional: 'Title (optional)',
     titlePlaceholder: 'My terminal',
     cwdOptional: 'Working directory (optional)',
-    cwdPlaceholder: '/home/user',
+    cwdPlaceholder: 'Leave empty to use the local user home',
     cancel: 'Cancel',
     create: 'Create',
     creating: 'Creating...',
@@ -73,7 +78,12 @@ export default {
   },
   tabs: {
     close: 'Close',
-    newTerminal: 'New Terminal'
+    newTerminal: 'New Terminal',
+    rename: 'Rename',
+    icon: 'Icon',
+    changeIcon: 'Change Icon...',
+    searchIcon: 'Search icons',
+    noIcons: 'No icons found'
   },
   fileBrowser: {
     explorer: 'EXPLORER',

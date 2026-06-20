@@ -45,6 +45,11 @@ install() {
         exit 1
     fi
 
+    if systemctl is-active --quiet mebtty.service 2>/dev/null; then
+        log "Stopping existing service before replacing executable..."
+        systemctl stop mebtty.service
+    fi
+
     # Copy executable
     log "Installing executable -> $EXEC_DEST"
     cp "$EXEC_SRC" "$EXEC_DEST"
@@ -53,11 +58,13 @@ install() {
     # Create data directories
     log "Creating data directory -> $DATA_DIR"
     mkdir -p "$DATA_DIR/uploads"
+    chown -R root:root "$DATA_DIR"
+    chmod 750 "$DATA_DIR" "$DATA_DIR/uploads"
 
     # Generate secret key if env file doesn't exist
     if [[ ! -f "$ENV_FILE" ]]; then
         log "Creating environment config -> $ENV_FILE"
-        mkdir -p "$(dirname "$ENV_FILE")"
+        install -d -m 750 -o root -g root "$(dirname "$ENV_FILE")"
         SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
         cat > "$ENV_FILE" <<EOF
 # MebTTY environment configuration
@@ -66,10 +73,15 @@ install() {
 MEBTTY_SECRET_KEY=$SECRET
 MEBTTY_HOST=0.0.0.0
 MEBTTY_PORT=18888
+MEBTTY_PAM_SERVICE=login
 EOF
-        chmod 600 "$ENV_FILE"
+        chown root:root "$ENV_FILE"
+        chmod 640 "$ENV_FILE"
     else
         warn "Environment file already exists, skipping ($ENV_FILE)"
+        chown root:root "$(dirname "$ENV_FILE")" "$ENV_FILE"
+        chmod 750 "$(dirname "$ENV_FILE")"
+        chmod 640 "$ENV_FILE"
     fi
 
     # Install systemd service
@@ -89,6 +101,7 @@ EOF
     echo -e "${CYAN}  Executable: $EXEC_DEST${NC}"
     echo -e "${CYAN}  Config:     $ENV_FILE${NC}"
     echo -e "${CYAN}  Data:       $DATA_DIR${NC}"
+    echo -e "${CYAN}  Service:    root user${NC}"
     echo -e "${CYAN}  Web UI:     http://localhost:18888${NC}"
     echo -e "${CYAN}${NC}"
     echo -e "${CYAN}  systemctl start mebtty${NC}"
