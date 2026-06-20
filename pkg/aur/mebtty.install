@@ -65,6 +65,21 @@ MEBTTY_PAM_SERVICE=login
 # Directory for uploaded files and avatars.
 # MEBTTY_UPLOAD_DIR=/var/lib/mebtty/uploads
 
+# Directory where uploaded plugins are installed.
+# MEBTTY_PLUGIN_DIR=/var/lib/mebtty/plugins
+
+# Maximum plugin package size in bytes.
+# MEBTTY_PLUGIN_MAX_SIZE=20971520
+
+# Allow installing third-party plugin packages through API/UI.
+# MEBTTY_PLUGIN_INSTALL_ENABLED=true
+
+# Require plugin signatures before installation.
+# MEBTTY_PLUGIN_SIGNATURE_REQUIRED=false
+
+# Allow trusted backend plugin code execution.
+# MEBTTY_PLUGIN_BACKEND_CODE_ENABLED=false
+
 # Root directory exposed by the file browser.
 # MEBTTY_BROWSE_ROOT=/var/lib/mebtty
 
@@ -111,6 +126,26 @@ _mebtty_append_optional_env() {
     "MEBTTY_UPLOAD_DIR" \
     "Directory for uploaded files and avatars." \
     "/var/lib/mebtty/uploads"
+  _mebtty_append_commented_env "${env_file}" \
+    "MEBTTY_PLUGIN_DIR" \
+    "Directory where uploaded plugins are installed." \
+    "/var/lib/mebtty/plugins"
+  _mebtty_append_commented_env "${env_file}" \
+    "MEBTTY_PLUGIN_MAX_SIZE" \
+    "Maximum plugin package size in bytes." \
+    "20971520"
+  _mebtty_append_commented_env "${env_file}" \
+    "MEBTTY_PLUGIN_INSTALL_ENABLED" \
+    "Allow installing third-party plugin packages through API/UI." \
+    "true"
+  _mebtty_append_commented_env "${env_file}" \
+    "MEBTTY_PLUGIN_SIGNATURE_REQUIRED" \
+    "Require plugin signatures before installation." \
+    "false"
+  _mebtty_append_commented_env "${env_file}" \
+    "MEBTTY_PLUGIN_BACKEND_CODE_ENABLED" \
+    "Allow trusted backend plugin code execution." \
+    "false"
   _mebtty_append_commented_env "${env_file}" \
     "MEBTTY_BROWSE_ROOT" \
     "Root directory exposed by the file browser." \

@@ -43,6 +43,7 @@ HOST="${MEBTTY_HOST:-0.0.0.0}"
 PORT="${MEBTTY_PORT:-18888}"
 DEV_FRONTEND_HOST="${MEBTTY_DEV_FRONTEND_HOST:-127.0.0.1}"
 DEV_FRONTEND_PORT="${MEBTTY_DEV_FRONTEND_PORT:-3000}"
+PLUGIN_DIR="${MEBTTY_PLUGIN_DIR:-$DATA_DIR/plugins}"
 
 # Required minimum versions
 MIN_PYTHON_MAJOR=3
@@ -271,7 +272,7 @@ setup_backend() {
     pip install -q --upgrade pip
     pip install -q -r requirements.txt
 
-    mkdir -p "$DATA_DIR" "$BACKEND_DIR/uploads"
+    mkdir -p "$DATA_DIR" "$BACKEND_DIR/uploads" "$PLUGIN_DIR"
 }
 
 setup_frontend_dev() {
@@ -314,11 +315,13 @@ start_server() {
 
     export MEBTTY_STATIC_DIR="$FRONTEND_DIR/dist"
     export MEBTTY_DATABASE_URL="${MEBTTY_DATABASE_URL:-sqlite+aiosqlite:///$DATA_DIR/mebtty.db}"
+    export MEBTTY_PLUGIN_DIR="$PLUGIN_DIR"
     ensure_env_secret
 
     log "Starting MebTTY server on $HOST:$PORT..."
     dim "  Frontend: $MEBTTY_STATIC_DIR"
     dim "  Database: $MEBTTY_DATABASE_URL"
+    dim "  Plugins: $MEBTTY_PLUGIN_DIR"
 
     nohup setsid python3 -m uvicorn app.main:app \
         --host "$HOST" \
@@ -421,6 +424,7 @@ start_dev_servers() {
     ensure_env_secret
     export MEBTTY_DATABASE_URL="${MEBTTY_DATABASE_URL:-sqlite+aiosqlite:///$DATA_DIR/mebtty.db}"
     export MEBTTY_UPLOAD_DIR="${MEBTTY_UPLOAD_DIR:-$BACKEND_DIR/uploads}"
+    export MEBTTY_PLUGIN_DIR="$PLUGIN_DIR"
     export MEBTTY_STATIC_DIR=""
     export MEBTTY_PORT="$PORT"
     export MEBTTY_DEV_FRONTEND_PORT="$DEV_FRONTEND_PORT"
@@ -654,6 +658,9 @@ print_help() {
     echo "  MEBTTY_SECRET_KEY        JWT secret             (default: auto-generated)"
     echo "  MEBTTY_DATABASE_URL      Database URL           (default: SQLite in data/)"
     echo "  MEBTTY_UPLOAD_DIR        Upload directory       (default: ./uploads)"
+    echo "  MEBTTY_PLUGIN_DIR        Plugin directory       (default: data/plugins)"
+    echo "  MEBTTY_PLUGIN_MAX_SIZE   Plugin package bytes   (default: 20971520)"
+    echo "  MEBTTY_PLUGIN_INSTALL_ENABLED Enable plugin install (default: true)"
     echo "  MEBTTY_MAX_UPLOAD_SIZE   Max upload size bytes  (default: 104857600)"
     echo "  MEBTTY_DEV_FRONTEND_HOST Dev frontend host      (default: 127.0.0.1)"
     echo "  MEBTTY_DEV_FRONTEND_PORT Dev frontend port      (default: 3000)"
