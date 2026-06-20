@@ -46,6 +46,7 @@ def _safe_zip_members(package: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
             detail=f"Plugin package contains too many files. Maximum is {MAX_PLUGIN_FILES}",
         )
 
+    total_uncompressed_size = 0
     for member in members:
         name = member.filename
         path = Path(name)
@@ -54,6 +55,14 @@ def _safe_zip_members(package: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Plugin package contains unsafe paths",
             )
+        if not member.is_dir():
+            total_uncompressed_size += member.file_size
+
+    if total_uncompressed_size > settings.PLUGIN_MAX_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Plugin package expands beyond the maximum size of {settings.PLUGIN_MAX_SIZE} bytes",
+        )
 
     return members
 
@@ -97,8 +106,9 @@ async def install_plugin_package(
             detail="Plugin installation is disabled",
         )
 
-    filename = upload.filename or ""
-    if not filename.endswith(PLUGIN_PACKAGE_SUFFIX):
+    raw_filename = upload.filename or ""
+    filename = Path(raw_filename.replace("\\", "/")).name
+    if not filename or filename == PLUGIN_PACKAGE_SUFFIX or not filename.endswith(PLUGIN_PACKAGE_SUFFIX):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Plugin package must use the .mtpx extension",
