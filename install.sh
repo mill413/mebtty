@@ -45,6 +45,11 @@ install() {
         exit 1
     fi
 
+    if systemctl is-active --quiet mebtty.service 2>/dev/null; then
+        log "Stopping existing service before replacing executable..."
+        systemctl stop mebtty.service
+    fi
+
     # Copy executable
     log "Installing executable -> $EXEC_DEST"
     cp "$EXEC_SRC" "$EXEC_DEST"
