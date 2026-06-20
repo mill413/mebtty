@@ -93,6 +93,7 @@ export default {
     close: 'Close',
     loading: 'Loading...',
     emptyDir: 'Empty directory',
+    noProvider: 'No file provider',
     download: 'Download',
     newFolderHere: 'New Folder Here',
     rename: 'Rename',

@@ -17,6 +17,58 @@ const state = reactive({
 let loadGeneration = 0
 let contributionSequence = 0
 
+const localFileProvider = {
+  id: 'builtin.local-files',
+  label: 'Local Files',
+  capabilities: ['browse', 'read', 'write', 'upload', 'download', 'mkdir', 'rename', 'delete'],
+  async browse({ path = '', showHidden = false }) {
+    const { data } = await api.get('/api/files/browse', {
+      params: { path, show_hidden: showHidden }
+    })
+    return data
+  },
+  async read({ path }) {
+    const { data } = await api.get('/api/files/read', { params: { path } })
+    return data
+  },
+  async write({ path, content, mtime }) {
+    const { data } = await api.put('/api/files/write', { path, content, mtime })
+    return data
+  },
+  async upload({ targetDir, file }) {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('target_dir', targetDir)
+    const { data } = await api.post('/api/files/upload-browse', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return data
+  },
+  async mkdir({ path, name }) {
+    const formData = new FormData()
+    formData.append('path', path)
+    formData.append('name', name)
+    const { data } = await api.post('/api/files/mkdir', formData)
+    return data
+  },
+  async rename({ path, newName }) {
+    const formData = new FormData()
+    formData.append('path', path)
+    formData.append('new_name', newName)
+    const { data } = await api.post('/api/files/rename', formData)
+    return data
+  },
+  async delete({ path }) {
+    const formData = new FormData()
+    formData.append('path', path)
+    const { data } = await api.post('/api/files/delete', formData)
+    return data
+  },
+  downloadUrl({ path, token }) {
+    return `/api/files/download-browse?path=${encodeURIComponent(path)}&token=${token}`
+  }
+}
+
 function clearContributions() {
   state.plugins = []
   state.panels = []
@@ -33,13 +85,19 @@ function contributionKey(plugin, contribution, type) {
 }
 
 function normalizeContribution(plugin, contribution, type) {
-  return {
+  const normalized = {
     ...contribution,
     key: contribution.key || contributionKey(plugin, contribution, type),
     pluginId: plugin.id,
     pluginName: plugin.name,
     pluginVersion: plugin.version
   }
+
+  if (type === 'fileProvider' && normalized.id === localFileProvider.id) {
+    return { ...localFileProvider, ...normalized }
+  }
+
+  return normalized
 }
 
 function appendContribution(collection, plugin, contribution, type) {

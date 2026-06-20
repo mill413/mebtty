@@ -72,6 +72,7 @@ const creating = ref(false)
 
 const isSettingsTab = computed(() => terminalStore.activeTab?.type === 'settings')
 const pluginSidebarPanels = computed(() => pluginRuntime.panels.value.filter((panel) => {
+  if (panel.pluginId === 'builtin.file-browser' || panel.id === 'builtin.file-browser.panel') return false
   return !panel.slot || panel.slot === 'terminal.sidebar'
 }))
 const pluginToolbarItems = computed(() => pluginRuntime.toolbarItems.value.filter((item) => {
@@ -79,6 +80,9 @@ const pluginToolbarItems = computed(() => pluginRuntime.toolbarItems.value.filte
 }))
 const pluginPanelButtons = computed(() => pluginSidebarPanels.value.filter((panel) => {
   return !pluginToolbarItems.value.some((item) => item.panelId === panel.id || item.panelId === panel.key)
+}))
+const fileProviders = computed(() => pluginRuntime.fileProviders.value.filter((provider) => {
+  return typeof provider?.browse === 'function'
 }))
 const activePluginPanel = computed(() => {
   if (!activePluginPanelId.value) return null
@@ -451,6 +455,7 @@ function logout() {
         v-if="showFileBrowser && settingsStore.sidebarOnLeft"
         :position="settingsStore.sidebarPosition"
         :initialPath="fileBrowserPath"
+        :providers="fileProviders"
         @close="closeFileBrowser"
         @open-file="handleOpenFile"
         @path-change="handleFileBrowserPathChange"
@@ -583,6 +588,7 @@ function logout() {
         v-if="showFileBrowser && !settingsStore.sidebarOnLeft"
         :position="settingsStore.sidebarPosition"
         :initialPath="fileBrowserPath"
+        :providers="fileProviders"
         @close="closeFileBrowser"
         @open-file="handleOpenFile"
         @path-change="handleFileBrowserPathChange"

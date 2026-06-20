@@ -93,6 +93,7 @@ export default {
     close: '閉じる',
     loading: '読み込み中...',
     emptyDir: '空のディレクトリ',
+    noProvider: '利用可能なファイルプロバイダーがありません',
     download: 'ダウンロード',
     newFolderHere: 'ここに新しいフォルダ',
     rename: '名前を変更',

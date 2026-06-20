@@ -93,6 +93,7 @@ export default {
     close: '关闭',
     loading: '加载中...',
     emptyDir: '空目录',
+    noProvider: '没有可用的文件提供者',
     download: '下载',
     newFolderHere: '在此新建文件夹',
     rename: '重命名',

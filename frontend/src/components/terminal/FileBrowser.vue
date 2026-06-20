@@ -1,14 +1,14 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getCatppuccinFileIcon, getCatppuccinFolderIcon } from 'vscode-icon-resolver'
-import api from '../../services/api'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
 const props = defineProps({
   position: { type: String, default: 'right' },
-  initialPath: { type: String, default: '' }
+  initialPath: { type: String, default: '' },
+  providers: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['close', 'open-file', 'path-change'])
@@ -63,11 +63,53 @@ const renameNewName = ref('')
 const showDeleteConfirm = ref(false)
 const deleteItem = ref(null)
 const showHidden = ref(false)              // show hidden files (dotfiles)
+const activeProviderId = ref('')
+const mounted = ref(false)
 
-function fetchDirectory(path) {
-  return api.get('/api/files/browse', {
-    params: { path: path || '', show_hidden: showHidden.value }
+const availableProviders = computed(() => props.providers.filter((provider) => typeof provider?.browse === 'function'))
+const activeProvider = computed(() => {
+  return availableProviders.value.find((provider) => provider.id === activeProviderId.value) || availableProviders.value[0] || null
+})
+const providerCapabilities = computed(() => new Set(activeProvider.value?.capabilities || []))
+const providerSupports = (capability) => providerCapabilities.value.has(capability) || typeof activeProvider.value?.[capability] === 'function'
+
+function ensureActiveProvider() {
+  if (!availableProviders.value.length) {
+    activeProviderId.value = ''
+    return
+  }
+  if (!availableProviders.value.some((provider) => provider.id === activeProviderId.value)) {
+    activeProviderId.value = availableProviders.value[0].id
+  }
+}
+
+function normalizeItem(item) {
+  return {
+    accessible: true,
+    is_text: false,
+    ...item,
+    providerId: activeProvider.value.id,
+    providerLabel: activeProvider.value.label || activeProvider.value.title || activeProvider.value.id
+  }
+}
+
+async function fetchDirectory(path) {
+  if (!activeProvider.value) {
+    return { data: { path: '', absolute_path: '', parent: null, items: [] } }
+  }
+  const data = await activeProvider.value.browse({
+    path: path || '',
+    showHidden: showHidden.value,
+    provider: activeProvider.value
   })
+  return {
+    data: {
+      path: data.path || path || '',
+      absolute_path: data.absolute_path || data.path || path || '',
+      parent: data.parent ?? null,
+      items: Array.isArray(data.items) ? data.items.map(normalizeItem) : []
+    }
+  }
 }
 
 // --- Show hidden files toggle ---
@@ -156,7 +198,11 @@ const activeDir = computed(() => {
 })
 
 onMounted(() => {
-  loadDirectory(props.initialPath || '')
+  mounted.value = true
+  ensureActiveProvider()
+  if (activeProvider.value) {
+    loadDirectory(props.initialPath || '')
+  }
   document.addEventListener('click', closeContextMenu)
   startAutoRefresh()
 })
@@ -165,7 +211,24 @@ onUnmounted(() => {
   document.removeEventListener('click', closeContextMenu)
   document.removeEventListener('mousemove', onResize)
   document.removeEventListener('mouseup', stopResize)
+  mounted.value = false
   stopAutoRefresh()
+})
+
+watch(availableProviders, () => {
+  const previousProvider = activeProviderId.value
+  ensureActiveProvider()
+  if (mounted.value && activeProvider.value && previousProvider !== activeProviderId.value) {
+    loadDirectory('')
+  }
+}, { immediate: true })
+
+watch(activeProviderId, (providerId, previousProviderId) => {
+  if (!mounted.value || !providerId || providerId === previousProviderId) return
+  selectedItem.value = null
+  expandedPaths.clear()
+  for (const key of Object.keys(childrenMap)) delete childrenMap[key]
+  loadDirectory('')
 })
 
 // --- Directory loading ---
@@ -273,14 +336,16 @@ function clickBreadcrumb(path) {
 
 // --- File operations ---
 function downloadFile(item) {
+  if (!activeProvider.value?.downloadUrl) return
   const token = localStorage.getItem('access_token')
   const link = document.createElement('a')
-  link.href = `/api/files/download-browse?path=${encodeURIComponent(item.path)}&token=${token}`
+  link.href = activeProvider.value.downloadUrl({ path: item.path, item, token, provider: activeProvider.value })
   link.download = item.name
   link.click()
 }
 
 function handleUpload() {
+  if (!activeProvider.value?.upload) return
   const targetDir = activeDir.value
   const input = document.createElement('input')
   input.type = 'file'
@@ -289,13 +354,8 @@ function handleUpload() {
     const files = e.target.files
     if (!files.length) return
     for (const file of files) {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('target_dir', targetDir)
       try {
-        await api.post('/api/files/upload-browse', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
+        await activeProvider.value.upload({ targetDir, file, provider: activeProvider.value })
       } catch (err) {
         console.error('Upload failed:', err)
       }
@@ -306,18 +366,20 @@ function handleUpload() {
 }
 
 function handleNewFolder() {
+  if (!activeProvider.value?.mkdir) return
   newFolderName.value = ''
   newFolderParent.value = activeDir.value
   showNewFolderDialog.value = true
 }
 
 async function createFolder() {
-  if (!newFolderName.value.trim()) return
+  if (!newFolderName.value.trim() || !activeProvider.value?.mkdir) return
   try {
-    const formData = new FormData()
-    formData.append('path', newFolderParent.value)
-    formData.append('name', newFolderName.value.trim())
-    await api.post('/api/files/mkdir', formData)
+    await activeProvider.value.mkdir({
+      path: newFolderParent.value,
+      name: newFolderName.value.trim(),
+      provider: activeProvider.value
+    })
     showNewFolderDialog.value = false
     await refreshAfter(newFolderParent.value)
   } catch (err) {
@@ -364,12 +426,14 @@ function promptRename(item) {
 }
 
 async function rename() {
-  if (!renameNewName.value.trim() || !renameItem.value) return
+  if (!renameNewName.value.trim() || !renameItem.value || !activeProvider.value?.rename) return
   try {
-    const formData = new FormData()
-    formData.append('path', renameItem.value.path)
-    formData.append('new_name', renameNewName.value.trim())
-    await api.post('/api/files/rename', formData)
+    await activeProvider.value.rename({
+      path: renameItem.value.path,
+      newName: renameNewName.value.trim(),
+      item: renameItem.value,
+      provider: activeProvider.value
+    })
     showRenameDialog.value = false
     await refreshParent(renameItem.value)
   } catch (err) {
@@ -383,11 +447,13 @@ function promptDelete(item) {
 }
 
 async function confirmDelete() {
-  if (!deleteItem.value) return
+  if (!deleteItem.value || !activeProvider.value?.delete) return
   try {
-    const formData = new FormData()
-    formData.append('path', deleteItem.value.path)
-    await api.post('/api/files/delete', formData)
+    await activeProvider.value.delete({
+      path: deleteItem.value.path,
+      item: deleteItem.value,
+      provider: activeProvider.value
+    })
     showDeleteConfirm.value = false
     expandedPaths.delete(deleteItem.value.path)
     await refreshParent(deleteItem.value)
@@ -480,16 +546,30 @@ function getIndentStyle(depth) {
     <div class="fb-header">
       <div class="fb-title">
         <span>{{ t('fileBrowser.explorer') }}</span>
+        <select
+          v-if="availableProviders.length > 1"
+          v-model="activeProviderId"
+          class="fb-provider-select"
+          :title="activeProvider?.label || activeProvider?.title || activeProvider?.id"
+        >
+          <option
+            v-for="provider in availableProviders"
+            :key="provider.id"
+            :value="provider.id"
+          >
+            {{ provider.label || provider.title || provider.id }}
+          </option>
+        </select>
       </div>
       <div class="fb-actions">
-        <button class="fb-btn-icon" @click="handleUpload" :title="t('fileBrowser.upload')">
+        <button v-if="providerSupports('upload')" class="fb-btn-icon" @click="handleUpload" :title="t('fileBrowser.upload')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
         </button>
-        <button class="fb-btn-icon" @click="handleNewFolder" :title="t('fileBrowser.newFolder')">
+        <button v-if="providerSupports('mkdir')" class="fb-btn-icon" @click="handleNewFolder" :title="t('fileBrowser.newFolder')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
             <line x1="12" y1="11" x2="12" y2="17"/>
@@ -587,7 +667,10 @@ function getIndentStyle(depth) {
         </div>
       </template>
 
-      <div v-if="tree.length === 0 && !loadingPaths.has(currentPath)" class="fb-empty">
+      <div v-if="!activeProvider" class="fb-empty">
+        {{ t('fileBrowser.noProvider') }}
+      </div>
+      <div v-else-if="tree.length === 0 && !loadingPaths.has(currentPath)" class="fb-empty">
         {{ t('fileBrowser.emptyDir') }}
       </div>
     </div>
@@ -599,7 +682,7 @@ function getIndentStyle(depth) {
         class="fb-context-menu"
         :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
       >
-        <button v-if="contextMenu.item && !contextMenu.item.is_dir" @click="downloadFile(contextMenu.item); closeContextMenu()">
+        <button v-if="contextMenu.item && !contextMenu.item.is_dir && providerSupports('download') && activeProvider?.downloadUrl" @click="downloadFile(contextMenu.item); closeContextMenu()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
@@ -607,7 +690,7 @@ function getIndentStyle(depth) {
           </svg>
           {{ t('fileBrowser.download') }}
         </button>
-        <button v-if="contextMenu.item && contextMenu.item.is_dir" @click="promptRename(contextMenu.item); closeContextMenu()">
+        <button v-if="contextMenu.item && contextMenu.item.is_dir && providerSupports('mkdir')" @click="handleNewFolder(); closeContextMenu()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
             <line x1="12" y1="11" x2="12" y2="17"/>
@@ -622,14 +705,14 @@ function getIndentStyle(depth) {
           </svg>
           {{ t('fileBrowser.copyPath') }}
         </button>
-        <button @click="promptRename(contextMenu.item); closeContextMenu()">
+        <button v-if="providerSupports('rename')" @click="promptRename(contextMenu.item); closeContextMenu()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
           {{ t('fileBrowser.rename') }}
         </button>
-        <button class="danger" @click="promptDelete(contextMenu.item); closeContextMenu()">
+        <button v-if="providerSupports('delete')" class="danger" @click="promptDelete(contextMenu.item); closeContextMenu()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -747,11 +830,27 @@ function getIndentStyle(depth) {
 }
 
 .fb-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--subtext);
   text-transform: uppercase;
+}
+
+.fb-provider-select {
+  min-width: 96px;
+  max-width: 140px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  text-transform: none;
 }
 
 .fb-actions {
