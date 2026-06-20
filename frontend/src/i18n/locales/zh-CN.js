@@ -204,6 +204,8 @@ export default {
     pluginRefreshing: '刷新中...',
     installedPlugins: '已安装插件',
     installedPluginsDesc: '管理内置插件和已安装的第三方插件',
+    pluginSettings: '插件设置',
+    pluginSettingsDesc: '已启用插件贡献的设置项',
     pluginLoading: '正在加载插件...',
     noPlugins: '没有插件',
     pluginBuiltin: '内置',

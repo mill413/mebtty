@@ -7,6 +7,8 @@ import { useThemeStore } from '../stores/theme'
 import { useAuthStore } from '../stores/auth'
 import { setLocale, resetToBrowserLocale, getSupportedLocales, hasUserLocale } from '../i18n'
 import api from '../services/api'
+import { usePluginRuntime } from '../plugins/registry'
+import PluginSettingsSectionHost from '../components/plugins/PluginSettingsSectionHost.vue'
 
 const props = defineProps({
   embedded: { type: Boolean, default: false }
@@ -17,6 +19,7 @@ const router = useRouter()
 const settingsStore = useSettingsStore()
 const themeStore = useThemeStore()
 const authStore = useAuthStore()
+const pluginRuntime = usePluginRuntime()
 
 const locales = getSupportedLocales()
 const localeLabels = { 'en-US': 'English', 'zh-CN': '简体中文', 'zh-TW': '繁體中文', 'ja': '日本語' }
@@ -47,6 +50,7 @@ const pluginsLoading = ref(false)
 const pluginsError = ref('')
 const pluginsMessage = ref('')
 const pluginInstalling = ref(false)
+const pluginSettingsSections = computed(() => pluginRuntime.settingsSections.value)
 const activeSection = ref('appearance')
 const sectionRefs = ref({})
 const activeThemeAccent = computed(() => {
@@ -110,7 +114,7 @@ onMounted(async () => {
   if (!authStore.user) await authStore.fetchUser()
   if (!settingsStore.loaded) await settingsStore.fetchSettings()
   tabFormat.value = settingsStore.tabTitleFormat
-  await loadPlugins()
+  await refreshPlugins()
 })
 
 function changeTheme(mode) {
@@ -264,6 +268,19 @@ async function loadPlugins() {
   }
 }
 
+async function refreshPluginRuntime() {
+  try {
+    await pluginRuntime.reloadPlugins()
+  } catch (err) {
+    console.error('Failed to refresh plugin runtime:', err)
+  }
+}
+
+async function refreshPlugins() {
+  await loadPlugins()
+  await refreshPluginRuntime()
+}
+
 async function installPlugin(event) {
   const file = event.target.files?.[0]
   event.target.value = ''
@@ -277,7 +294,7 @@ async function installPlugin(event) {
   try {
     await api.post('/api/plugins/install', formData)
     setPluginNotice(t('settings.pluginInstalled'))
-    await loadPlugins()
+    await refreshPlugins()
   } catch (err) {
     setPluginNotice('', err.response?.data?.detail || t('settings.pluginInstallFailed'))
   } finally {
@@ -290,7 +307,7 @@ async function enablePlugin(plugin) {
   try {
     await api.post(`/api/plugins/${encodeURIComponent(plugin.id)}/enable`)
     setPluginNotice(t('settings.pluginEnabled'))
-    await loadPlugins()
+    await refreshPlugins()
   } catch (err) {
     setPluginNotice('', err.response?.data?.detail || t('settings.pluginActionFailed'))
   }
@@ -301,7 +318,7 @@ async function disablePlugin(plugin) {
   try {
     await api.post(`/api/plugins/${encodeURIComponent(plugin.id)}/disable`)
     setPluginNotice(t('settings.pluginDisabled'))
-    await loadPlugins()
+    await refreshPlugins()
   } catch (err) {
     setPluginNotice('', err.response?.data?.detail || t('settings.pluginActionFailed'))
   }
@@ -314,7 +331,7 @@ async function deletePlugin(plugin) {
   try {
     await api.delete(`/api/plugins/${encodeURIComponent(plugin.id)}`)
     setPluginNotice(t('settings.pluginDeleted'))
-    await loadPlugins()
+    await refreshPlugins()
   } catch (err) {
     setPluginNotice('', err.response?.data?.detail || t('settings.pluginActionFailed'))
   }
@@ -516,6 +533,22 @@ function pluginPermissionLabel(permission) {
                 <button class="btn-secondary" @click="resetCustomTheme">
                   {{ t('settings.resetCustomTheme') }}
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="pluginSettingsSections.length" class="setting-row setting-row-column">
+            <div class="setting-info">
+              <h3>{{ t('settings.pluginSettings') }}</h3>
+              <p>{{ t('settings.pluginSettingsDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div class="plugin-settings-list">
+                <PluginSettingsSectionHost
+                  v-for="section in pluginSettingsSections"
+                  :key="section.key"
+                  :section="section"
+                />
               </div>
             </div>
           </div>
@@ -726,7 +759,7 @@ function pluginPermissionLabel(permission) {
                   </svg>
                   {{ pluginInstalling ? t('settings.pluginInstalling') : t('settings.pluginChoosePackage') }}
                 </label>
-                <button class="btn-secondary" @click="loadPlugins" :disabled="pluginsLoading">
+                <button class="btn-secondary" @click="refreshPlugins" :disabled="pluginsLoading">
                   {{ pluginsLoading ? t('settings.pluginRefreshing') : t('settings.pluginRefresh') }}
                 </button>
               </div>
@@ -1494,6 +1527,12 @@ function pluginPermissionLabel(permission) {
 .plugin-empty {
   color: var(--subtext);
   font-size: 13px;
+}
+
+.plugin-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 @media (max-width: 760px) {

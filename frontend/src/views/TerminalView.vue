@@ -9,9 +9,11 @@ import TerminalPane from '../components/terminal/TerminalPane.vue'
 import StatusBar from '../components/layout/StatusBar.vue'
 import FileBrowser from '../components/terminal/FileBrowser.vue'
 import FileEditorPane from '../components/terminal/FileEditorPane.vue'
+import PluginPanelHost from '../components/plugins/PluginPanelHost.vue'
 import SettingsView from './SettingsView.vue'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
+import { usePluginRuntime } from '../plugins/registry'
 
 import bashIcon from '../assets/shell-icons/gnubash.svg'
 import zshIcon from '../assets/shell-icons/zsh.svg'
@@ -25,6 +27,7 @@ const router = useRouter()
 const terminalStore = useTerminalStore()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
+const pluginRuntime = usePluginRuntime()
 
 const terminalPaneRef = ref(null)
 const terminalDims = ref({ cols: 80, rows: 24 })
@@ -35,6 +38,7 @@ const activeFileItem = ref(null)
 const fileEditorDirty = ref(false)
 const showUserMenu = ref(false)
 const zenMode = ref(false)
+const activePluginPanelId = ref('')
 
 function toggleZenMode() {
   if (!document.fullscreenElement) {
@@ -67,6 +71,21 @@ const createError = ref('')
 const creating = ref(false)
 
 const isSettingsTab = computed(() => terminalStore.activeTab?.type === 'settings')
+const pluginSidebarPanels = computed(() => pluginRuntime.panels.value.filter((panel) => {
+  return !panel.slot || panel.slot === 'terminal.sidebar'
+}))
+const pluginToolbarItems = computed(() => pluginRuntime.toolbarItems.value.filter((item) => {
+  return !item.slot || item.slot === 'terminal.toolbar'
+}))
+const pluginPanelButtons = computed(() => pluginSidebarPanels.value.filter((panel) => {
+  return !pluginToolbarItems.value.some((item) => item.panelId === panel.id || item.panelId === panel.key)
+}))
+const activePluginPanel = computed(() => {
+  if (!activePluginPanelId.value) return null
+  return pluginSidebarPanels.value.find((panel) => {
+    return panel.id === activePluginPanelId.value || panel.key === activePluginPanelId.value
+  }) || null
+})
 
 // Supported shells with icons — only these are shown if available on the system
 const SUPPORTED_SHELLS = [
@@ -90,6 +109,12 @@ onMounted(async () => {
 
   if (!settingsStore.loaded) {
     await settingsStore.fetchSettings()
+  }
+
+  try {
+    await pluginRuntime.loadPlugins()
+  } catch (err) {
+    console.error('Failed to load plugins:', err)
   }
 
   await terminalStore.fetchSessions()
@@ -251,6 +276,33 @@ function closeFileEditor() {
   fileEditorDirty.value = false
 }
 
+function togglePluginPanel(panel) {
+  const panelId = panel.id || panel.key
+  activePluginPanelId.value = activePluginPanelId.value === panelId ? '' : panelId
+}
+
+function closePluginPanel() {
+  activePluginPanelId.value = ''
+}
+
+function handlePluginToolbarItem(item) {
+  if (typeof item.action === 'function') {
+    item.action({ terminalStore, settingsStore, activeTab: terminalStore.activeTab })
+    return
+  }
+
+  if (item.panelId) {
+    const panel = pluginSidebarPanels.value.find((candidate) => {
+      return candidate.id === item.panelId || candidate.key === item.panelId
+    })
+    if (panel) togglePluginPanel(panel)
+  }
+}
+
+function pluginButtonLabel(item) {
+  return item.icon || item.title?.charAt(0)?.toUpperCase() || item.name?.charAt(0)?.toUpperCase() || '*'
+}
+
 function openSettings() {
   showUserMenu.value = false
   terminalStore.openSettingsTab()
@@ -325,6 +377,26 @@ function logout() {
           </svg>
         </button>
         <button
+          v-for="panel in pluginPanelButtons"
+          :key="panel.key"
+          class="toolbar-btn"
+          :class="{ active: activePluginPanelId === (panel.id || panel.key) }"
+          @click="togglePluginPanel(panel)"
+          :title="panel.title || panel.name || panel.pluginName"
+        >
+          <span class="toolbar-plugin-icon">{{ pluginButtonLabel(panel) }}</span>
+        </button>
+        <button
+          v-for="item in pluginToolbarItems"
+          :key="item.key"
+          class="toolbar-btn"
+          :class="{ active: item.panelId && activePluginPanelId === item.panelId }"
+          @click="handlePluginToolbarItem(item)"
+          :title="item.title || item.name || item.pluginName"
+        >
+          <span class="toolbar-plugin-icon">{{ pluginButtonLabel(item) }}</span>
+        </button>
+        <button
           class="toolbar-btn"
           :class="{ active: zenMode }"
           @click="toggleZenMode"
@@ -389,6 +461,12 @@ function logout() {
         :position="settingsStore.sidebarPosition"
         @close="closeFileEditor"
         @dirty-change="fileEditorDirty = $event"
+      />
+      <PluginPanelHost
+        v-if="activePluginPanel && settingsStore.sidebarOnLeft"
+        :panel="activePluginPanel"
+        :position="settingsStore.sidebarPosition"
+        @close="closePluginPanel"
       />
       <div class="terminal-body">
         <!-- Settings tab content -->
@@ -494,6 +572,12 @@ function logout() {
         :position="settingsStore.sidebarPosition"
         @close="closeFileEditor"
         @dirty-change="fileEditorDirty = $event"
+      />
+      <PluginPanelHost
+        v-if="activePluginPanel && !settingsStore.sidebarOnLeft"
+        :panel="activePluginPanel"
+        :position="settingsStore.sidebarPosition"
+        @close="closePluginPanel"
       />
       <FileBrowser
         v-if="showFileBrowser && !settingsStore.sidebarOnLeft"
@@ -667,6 +751,17 @@ function logout() {
 .toolbar-btn.active {
   background: var(--surface);
   color: var(--accent);
+}
+
+.toolbar-plugin-icon {
+  min-width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .user-menu-wrapper {

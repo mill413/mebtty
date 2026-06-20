@@ -204,6 +204,8 @@ export default {
     pluginRefreshing: '重新整理中...',
     installedPlugins: '已安裝外掛',
     installedPluginsDesc: '管理內建外掛和已安裝的第三方外掛',
+    pluginSettings: '外掛設定',
+    pluginSettingsDesc: '已啟用外掛提供的設定項',
     pluginLoading: '正在載入外掛...',
     noPlugins: '沒有外掛',
     pluginBuiltin: '內建',

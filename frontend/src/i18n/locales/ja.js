@@ -203,6 +203,8 @@ export default {
     pluginRefreshing: '更新中...',
     installedPlugins: 'インストール済みプラグイン',
     installedPluginsDesc: '組み込みプラグインとインストール済みサードパーティープラグインを管理',
+    pluginSettings: 'プラグイン設定',
+    pluginSettingsDesc: '有効なプラグインが提供する設定セクション',
     pluginLoading: 'プラグインを読み込み中...',
     noPlugins: 'プラグインがありません',
     pluginBuiltin: '組み込み',

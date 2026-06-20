@@ -1,10 +1,13 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.audit.service import log_event
 from app.database import get_db
-from app.models import User
+from app.models import Plugin, User
 from app.plugins.installer import install_plugin_package
 from app.plugins.manager import (
     delete_plugin,
@@ -18,12 +21,40 @@ from app.plugins.schemas import PluginActionResponse, PluginInstallResponse, Plu
 router = APIRouter(prefix="/api/plugins", tags=["plugins"])
 
 
+def resolve_plugin_asset(plugin: Plugin, asset_path: str) -> Path:
+    if plugin.builtin or plugin.status != "enabled" or not plugin.install_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin asset not found")
+
+    if not asset_path or asset_path.startswith(("/", "\\")):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin asset not found")
+
+    root = Path(plugin.install_path).resolve()
+    asset = (root / asset_path).resolve()
+    if asset != root and root not in asset.parents:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin asset not found")
+    if not asset.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin asset not found")
+    return asset
+
+
 @router.get("", response_model=list[PluginResponse])
 async def get_plugins(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     return await list_plugins(db)
+
+
+@router.get("/{plugin_id}/assets/{asset_path:path}")
+async def get_plugin_asset(
+    plugin_id: str,
+    asset_path: str,
+    db: AsyncSession = Depends(get_db),
+):
+    plugin = await db.get(Plugin, plugin_id)
+    if plugin is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin asset not found")
+    return FileResponse(resolve_plugin_asset(plugin, asset_path))
 
 
 @router.get("/{plugin_id}", response_model=PluginResponse)

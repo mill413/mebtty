@@ -204,6 +204,8 @@ export default {
     pluginRefreshing: 'Refreshing...',
     installedPlugins: 'Installed Plugins',
     installedPluginsDesc: 'Manage built-in plugins and installed third-party plugins',
+    pluginSettings: 'Plugin Settings',
+    pluginSettingsDesc: 'Settings sections contributed by enabled plugins',
     pluginLoading: 'Loading plugins...',
     noPlugins: 'No plugins',
     pluginBuiltin: 'Built-in',
