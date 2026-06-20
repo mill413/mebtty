@@ -8,7 +8,8 @@ const { t } = useI18n()
 const props = defineProps({
   position: { type: String, default: 'right' },
   initialPath: { type: String, default: '' },
-  providers: { type: Array, default: () => [] }
+  providers: { type: Array, default: () => [] },
+  iconPack: { type: Object, default: null }
 })
 
 const emit = defineEmits(['close', 'open-file', 'path-change'])
@@ -513,7 +514,37 @@ async function refreshParent(item) {
 }
 
 // --- Icon helpers (Catppuccin VSCode Icons) ---
+function joinIconPath(base, file) {
+  return `${String(base || '').replace(/\/$/, '')}/${String(file || '').replace(/^\//, '')}`
+}
+
+function getFileExtension(name) {
+  const index = name.lastIndexOf('.')
+  return index > 0 ? name.slice(index).toLowerCase() : ''
+}
+
+function getPackIconSrc(item, iconPack) {
+  if (!iconPack || iconPack.id === 'catppuccin') return ''
+  if (item.is_dir) {
+    const folderIcon = iconPack.folders?.[item.name] ||
+      iconPack.folders?.[item.name.toLowerCase()] ||
+      iconPack.folders?.default ||
+      iconPack.fallbackFolder
+    return joinIconPath(iconPack.assetsBase, folderIcon || 'folder.svg')
+  }
+
+  const icon = iconPack.files?.[item.name] ||
+    iconPack.files?.[item.name.toLowerCase()] ||
+    iconPack.extensions?.[getFileExtension(item.name)] ||
+    iconPack.files?.default ||
+    iconPack.fallbackFile
+  return joinIconPath(iconPack.assetsBase, icon || '_file.svg')
+}
+
 function getFileIconSrc(item) {
+  const packIcon = getPackIconSrc(item, props.iconPack)
+  if (packIcon) return packIcon
+
   if (item.is_dir) {
     const isOpen = expandedPaths.has(item.path)
     const iconName = getCatppuccinFolderIcon(item.name)
@@ -527,6 +558,10 @@ function getFileIconSrc(item) {
 }
 
 function onIconError(e) {
+  if (props.iconPack && props.iconPack.id !== 'catppuccin') {
+    e.target.src = joinIconPath(props.iconPack.assetsBase, props.iconPack.fallbackFile || props.iconPack.fallbackFolder || '_file.svg')
+    return
+  }
   e.target.src = '/catppuccin-icons/_file.svg'
 }
 

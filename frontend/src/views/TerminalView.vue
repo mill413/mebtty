@@ -84,6 +84,12 @@ const pluginPanelButtons = computed(() => pluginSidebarPanels.value.filter((pane
 const fileProviders = computed(() => pluginRuntime.fileProviders.value.filter((provider) => {
   return typeof provider?.browse === 'function'
 }))
+const activeIconPack = computed(() => {
+  const configuredIconPack = settingsStore.pluginSettings.activeIconPackId
+  return pluginRuntime.iconPacks.value.find((pack) => pack.id === configuredIconPack) ||
+    pluginRuntime.iconPacks.value[0] ||
+    null
+})
 const activePluginPanel = computed(() => {
   if (!activePluginPanelId.value) return null
   return pluginSidebarPanels.value.find((panel) => {
@@ -456,6 +462,7 @@ function logout() {
         :position="settingsStore.sidebarPosition"
         :initialPath="fileBrowserPath"
         :providers="fileProviders"
+        :iconPack="activeIconPack"
         @close="closeFileBrowser"
         @open-file="handleOpenFile"
         @path-change="handleFileBrowserPathChange"
@@ -589,6 +596,7 @@ function logout() {
         :position="settingsStore.sidebarPosition"
         :initialPath="fileBrowserPath"
         :providers="fileProviders"
+        :iconPack="activeIconPack"
         @close="closeFileBrowser"
         @open-file="handleOpenFile"
         @path-change="handleFileBrowserPathChange"

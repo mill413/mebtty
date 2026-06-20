@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { CUSTOM_THEME_FIELDS, CUSTOM_THEME_MODES, useSettingsStore } from '../stores/settings'
+import { CUSTOM_THEME_FIELDS, CUSTOM_THEME_MODES, DEFAULT_CUSTOM_THEME, useSettingsStore } from '../stores/settings'
 import { useThemeStore } from '../stores/theme'
 import { useAuthStore } from '../stores/auth'
 import { setLocale, resetToBrowserLocale, getSupportedLocales, hasUserLocale } from '../i18n'
@@ -51,6 +51,10 @@ const pluginsError = ref('')
 const pluginsMessage = ref('')
 const pluginInstalling = ref(false)
 const pluginSettingsSections = computed(() => pluginRuntime.settingsSections.value)
+const pluginThemes = computed(() => pluginRuntime.themes.value.filter((theme) => theme?.id && theme?.modes?.dark && theme?.modes?.light))
+const pluginIconPacks = computed(() => pluginRuntime.iconPacks.value.filter((pack) => pack?.id && pack?.assetsBase))
+const selectedPluginThemeId = computed(() => settingsStore.pluginSettings.activeThemeId || '')
+const selectedIconPackId = computed(() => settingsStore.pluginSettings.activeIconPackId || pluginIconPacks.value[0]?.id || '')
 const activeSection = ref('appearance')
 const sectionRefs = ref({})
 const activeThemeAccent = computed(() => {
@@ -159,6 +163,40 @@ function saveCustomThemeColor(mode, key, color) {
 
 function resetCustomTheme() {
   settingsStore.resetCustomTheme()
+}
+
+function normalizePluginTheme(theme) {
+  return {
+    dark: { ...DEFAULT_CUSTOM_THEME.dark, ...theme.modes.dark },
+    light: { ...DEFAULT_CUSTOM_THEME.light, ...theme.modes.light }
+  }
+}
+
+function selectPluginTheme(themeId) {
+  if (!themeId) {
+    const { activeThemeId, ...rest } = settingsStore.pluginSettings
+    settingsStore.updatePluginSettings(rest)
+    return
+  }
+
+  const theme = pluginThemes.value.find((candidate) => candidate.id === themeId)
+  if (!theme) return
+  const nextTheme = normalizePluginTheme(theme)
+  settingsStore.customThemeEnabled = true
+  settingsStore.customTheme = nextTheme
+  settingsStore.applyThemeColors()
+  settingsStore.updatePluginSettings({ ...settingsStore.pluginSettings, activeThemeId: themeId })
+  settingsStore.updateSettings({
+    custom_theme_enabled: true,
+    custom_theme: JSON.stringify(nextTheme)
+  })
+}
+
+function selectIconPack(iconPackId) {
+  settingsStore.updatePluginSettings({
+    ...settingsStore.pluginSettings,
+    activeIconPackId: iconPackId
+  })
 }
 
 function saveTabFormat() {
@@ -449,6 +487,21 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
+          <div class="setting-row" v-if="pluginThemes.length">
+            <div class="setting-info">
+              <h3>{{ t('settings.pluginTheme') }}</h3>
+              <p>{{ t('settings.pluginThemeDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <select class="setting-select" :value="selectedPluginThemeId" @change="selectPluginTheme($event.target.value)">
+                <option value="">{{ t('settings.pluginThemeCustom') }}</option>
+                <option v-for="theme in pluginThemes" :key="theme.key" :value="theme.id">
+                  {{ theme.label || theme.title || theme.id }}
+                </option>
+              </select>
+            </div>
+          </div>
+
           <div class="setting-row">
             <div class="setting-info">
               <h3>{{ t('settings.accentColor') }}</h3>
@@ -647,6 +700,20 @@ function pluginPermissionLabel(permission) {
                   {{ t('settings.right') }}
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div class="setting-row" v-if="pluginIconPacks.length">
+            <div class="setting-info">
+              <h3>{{ t('settings.fileIconPack') }}</h3>
+              <p>{{ t('settings.fileIconPackDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <select class="setting-select" :value="selectedIconPackId" @change="selectIconPack($event.target.value)">
+                <option v-for="pack in pluginIconPacks" :key="pack.key" :value="pack.id">
+                  {{ pack.label || pack.title || pack.id }}
+                </option>
+              </select>
             </div>
           </div>
 
