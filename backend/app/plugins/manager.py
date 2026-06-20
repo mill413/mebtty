@@ -1,4 +1,6 @@
 import json
+import shutil
+from pathlib import Path
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -50,8 +52,11 @@ async def delete_plugin(db: AsyncSession, plugin_id: str) -> Plugin:
             detail="Built-in plugins cannot be deleted",
         )
 
+    install_path = plugin.install_path
     await db.delete(plugin)
     await db.flush()
+    if install_path:
+        shutil.rmtree(Path(install_path), ignore_errors=True)
     return plugin
 
 
