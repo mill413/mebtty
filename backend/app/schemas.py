@@ -1,7 +1,14 @@
+import json
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+def is_hex_color(value: object) -> bool:
+    if not isinstance(value, str) or len(value) != 7 or value[0] != "#":
+        return False
+    return all(char in "0123456789abcdefABCDEF" for char in value[1:])
 
 
 # ---- User ----
@@ -85,6 +92,51 @@ class UserSettingsUpdate(BaseModel):
     session_timeout: Optional[int] = None
     file_auto_save: Optional[bool] = None
     file_show_line_numbers: Optional[bool] = None
+
+    @field_validator("theme_mode")
+    @classmethod
+    def validate_theme_mode(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in {"system", "dark", "light"}:
+            raise ValueError("theme_mode must be one of: system, dark, light")
+        return value
+
+    @field_validator("accent_color")
+    @classmethod
+    def validate_accent_color(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and not is_hex_color(value):
+            raise ValueError("accent_color must be a 6-digit hex color")
+        return value.lower() if value else value
+
+    @field_validator("custom_theme")
+    @classmethod
+    def validate_custom_theme(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError("custom_theme must be valid JSON") from exc
+
+        if not isinstance(parsed, dict):
+            raise ValueError("custom_theme must be a JSON object")
+
+        allowed_modes = {"dark", "light"}
+        allowed_keys = {"bg", "bgDeep", "surface", "surfaceHover", "overlay", "text", "subtext", "border", "accent"}
+
+        for mode, palette in parsed.items():
+            if mode not in allowed_modes:
+                raise ValueError("custom_theme only supports dark and light palettes")
+            if not isinstance(palette, dict):
+                raise ValueError("custom_theme palettes must be JSON objects")
+
+            for key, color in palette.items():
+                if key not in allowed_keys:
+                    raise ValueError(f"custom_theme contains unsupported color key: {key}")
+                if not is_hex_color(color):
+                    raise ValueError("custom_theme colors must be 6-digit hex colors")
+
+        return json.dumps(parsed, separators=(",", ":"))
 
 
 class UserSettingsResponse(BaseModel):

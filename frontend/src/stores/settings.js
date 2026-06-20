@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import api from '../services/api'
 
-const DEFAULT_CUSTOM_THEME = {
+export const DEFAULT_CUSTOM_THEME = {
   dark: {
     bg: '#1e1e2e',
     bgDeep: '#181825',
@@ -26,6 +26,20 @@ const DEFAULT_CUSTOM_THEME = {
   }
 }
 
+export const CUSTOM_THEME_FIELDS = [
+  { key: 'bg', label: 'settings.themeBg' },
+  { key: 'bgDeep', label: 'settings.themeBgDeep' },
+  { key: 'surface', label: 'settings.themeSurface' },
+  { key: 'surfaceHover', label: 'settings.themeSurfaceHover' },
+  { key: 'overlay', label: 'settings.themeOverlay' },
+  { key: 'text', label: 'settings.themeText' },
+  { key: 'subtext', label: 'settings.themeSubtext' },
+  { key: 'border', label: 'settings.themeBorder' },
+  { key: 'accent', label: 'settings.themeAccent' }
+]
+
+export const CUSTOM_THEME_MODES = ['dark', 'light']
+
 const CUSTOM_THEME_VARS = {
   bg: '--bg',
   bgDeep: '--bg-deep',
@@ -38,6 +52,25 @@ const CUSTOM_THEME_VARS = {
   accent: '--accent'
 }
 
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
+
+function normalizeHexColor(color, fallback) {
+  return typeof color === 'string' && HEX_COLOR_RE.test(color) ? color.toLowerCase() : fallback
+}
+
+function normalizeCustomTheme(rawTheme) {
+  const theme = rawTheme && typeof rawTheme === 'object' ? rawTheme : {}
+  return CUSTOM_THEME_MODES.reduce((next, mode) => {
+    const source = theme[mode] && typeof theme[mode] === 'object' ? theme[mode] : {}
+    next[mode] = CUSTOM_THEME_FIELDS.reduce((palette, field) => {
+      const fallback = DEFAULT_CUSTOM_THEME[mode][field.key]
+      palette[field.key] = normalizeHexColor(source[field.key], fallback)
+      return palette
+    }, {})
+    return next
+  }, {})
+}
+
 function parseCustomTheme(raw) {
   if (!raw) return cloneDefaultCustomTheme()
 
@@ -46,16 +79,13 @@ function parseCustomTheme(raw) {
     if (!parsed || typeof parsed !== 'object') return cloneDefaultCustomTheme()
 
     if (parsed.dark || parsed.light) {
-      return {
-        dark: { ...DEFAULT_CUSTOM_THEME.dark, ...(parsed.dark || {}) },
-        light: { ...DEFAULT_CUSTOM_THEME.light, ...(parsed.light || {}) }
-      }
+      return normalizeCustomTheme(parsed)
     }
 
-    return {
+    return normalizeCustomTheme({
       dark: { ...DEFAULT_CUSTOM_THEME.dark, ...parsed },
       light: { ...DEFAULT_CUSTOM_THEME.light }
-    }
+    })
   } catch {
     return cloneDefaultCustomTheme()
   }
@@ -86,6 +116,10 @@ export const useSettingsStore = defineStore('settings', {
 
   getters: {
     sidebarOnLeft: (state) => state.sidebarPosition === 'left',
+    resolvedThemeAccent: (state) => {
+      const mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
+      return state.customThemeEnabled ? state.customTheme[mode]?.accent : state.accentColor
+    },
     statusBarLeftItems: (state) =>
       state.statusBarItems.filter((i) => i.visible && i.position === 'left').sort((a, b) => a.order - b.order),
     statusBarRightItems: (state) =>
@@ -105,8 +139,7 @@ export const useSettingsStore = defineStore('settings', {
         this.sessionTimeout = data.session_timeout
         this.fileAutoSave = data.file_auto_save !== false
         this.fileShowLineNumbers = data.file_show_line_numbers === true
-        localStorage.setItem('mebtty-file-auto-save', this.fileAutoSave)
-        localStorage.setItem('mebtty-file-show-line-numbers', this.fileShowLineNumbers)
+        this.saveLocalSettings()
         this.loaded = true
         this.applyThemeColors()
       } catch {
@@ -128,12 +161,20 @@ export const useSettingsStore = defineStore('settings', {
         this.sessionTimeout = data.session_timeout
         this.fileAutoSave = data.file_auto_save !== false
         this.fileShowLineNumbers = data.file_show_line_numbers === true
-        localStorage.setItem('mebtty-file-auto-save', this.fileAutoSave)
-        localStorage.setItem('mebtty-file-show-line-numbers', this.fileShowLineNumbers)
+        this.saveLocalSettings()
         this.applyThemeColors()
       } catch (err) {
         console.error('Failed to update settings:', err)
       }
+    },
+
+    saveLocalSettings() {
+      localStorage.setItem('mebtty-theme', this.themeMode)
+      localStorage.setItem('mebtty-accent', this.accentColor)
+      localStorage.setItem('mebtty-custom-theme-enabled', this.customThemeEnabled)
+      localStorage.setItem('mebtty-custom-theme', JSON.stringify(this.customTheme))
+      localStorage.setItem('mebtty-file-auto-save', this.fileAutoSave)
+      localStorage.setItem('mebtty-file-show-line-numbers', this.fileShowLineNumbers)
     },
 
     applyAccentColor() {
@@ -145,6 +186,7 @@ export const useSettingsStore = defineStore('settings', {
       for (const variable of Object.values(CUSTOM_THEME_VARS)) {
         root.style.removeProperty(variable)
       }
+      root.style.removeProperty('--fg')
       root.style.removeProperty('--accent-hover')
 
       if (this.customThemeEnabled) {
@@ -153,6 +195,7 @@ export const useSettingsStore = defineStore('settings', {
         for (const [key, variable] of Object.entries(CUSTOM_THEME_VARS)) {
           root.style.setProperty(variable, palette[key] || DEFAULT_CUSTOM_THEME[mode][key])
         }
+        root.style.setProperty('--fg', palette.text || DEFAULT_CUSTOM_THEME[mode].text)
       } else {
         root.style.setProperty('--accent', this.accentColor)
       }
@@ -161,9 +204,7 @@ export const useSettingsStore = defineStore('settings', {
       const accent = this.customThemeEnabled ? this.customTheme[mode]?.accent : this.accentColor
       const hover = this.adjustBrightness(accent, -20)
       root.style.setProperty('--accent-hover', hover)
-      localStorage.setItem('mebtty-accent', this.accentColor)
-      localStorage.setItem('mebtty-custom-theme-enabled', this.customThemeEnabled)
-      localStorage.setItem('mebtty-custom-theme', JSON.stringify(this.customTheme))
+      this.saveLocalSettings()
     },
 
     adjustBrightness(hex, amount) {
@@ -185,24 +226,54 @@ export const useSettingsStore = defineStore('settings', {
       this.updateSettings({ custom_theme_enabled: enabled })
     },
 
-    updateCustomThemeColor(mode, key, color) {
+    previewAccentColor(color) {
+      const normalized = normalizeHexColor(color, null)
+      if (!normalized) return
+
+      if (this.customThemeEnabled) {
+        this.previewCustomThemeColor(this.currentResolvedThemeMode(), 'accent', normalized)
+      } else {
+        this.accentColor = normalized
+        this.applyThemeColors()
+      }
+    },
+
+    saveAccentColor(color) {
+      const normalized = normalizeHexColor(color, null)
+      if (!normalized) return
+
+      if (this.customThemeEnabled) {
+        this.saveCustomThemeColor(this.currentResolvedThemeMode(), 'accent', normalized)
+      } else {
+        this.accentColor = normalized
+        this.applyThemeColors()
+        this.updateSettings({ accent_color: normalized })
+      }
+    },
+
+    previewCustomThemeColor(mode, key, color) {
       if (!Object.hasOwn(DEFAULT_CUSTOM_THEME, mode)) return
       if (!Object.hasOwn(CUSTOM_THEME_VARS, key)) return
+      const normalized = normalizeHexColor(color, null)
+      if (!normalized) return
+
       this.customTheme = {
         ...this.customTheme,
-        [mode]: { ...this.customTheme[mode], [key]: color }
+        [mode]: { ...this.customTheme[mode], [key]: normalized }
       }
-      if (key === 'accent' && mode === this.currentResolvedThemeMode()) this.accentColor = color
       this.applyThemeColors()
+    },
+
+    saveCustomThemeColor(mode, key, color) {
+      this.previewCustomThemeColor(mode, key, color)
       this.updateSettings({
-        custom_theme: JSON.stringify(this.customTheme),
-        accent_color: this.accentColor
+        custom_theme: JSON.stringify(this.customTheme)
       })
     },
 
     resetCustomTheme() {
       this.customTheme = cloneDefaultCustomTheme()
-      this.accentColor = DEFAULT_CUSTOM_THEME[this.currentResolvedThemeMode()].accent
+      this.accentColor = DEFAULT_CUSTOM_THEME.dark.accent
       this.applyThemeColors()
       this.updateSettings({
         custom_theme: JSON.stringify(this.customTheme),

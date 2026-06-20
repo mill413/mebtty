@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useSettingsStore } from '../stores/settings'
+import { CUSTOM_THEME_FIELDS, CUSTOM_THEME_MODES, useSettingsStore } from '../stores/settings'
 import { useThemeStore } from '../stores/theme'
 import { useAuthStore } from '../stores/auth'
 import { setLocale, resetToBrowserLocale, getSupportedLocales, hasUserLocale } from '../i18n'
@@ -34,18 +34,8 @@ function changeLanguage(locale) {
 }
 
 const accentPresets = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4']
-const customThemeFields = [
-  { key: 'bg', label: 'settings.themeBg' },
-  { key: 'bgDeep', label: 'settings.themeBgDeep' },
-  { key: 'surface', label: 'settings.themeSurface' },
-  { key: 'surfaceHover', label: 'settings.themeSurfaceHover' },
-  { key: 'overlay', label: 'settings.themeOverlay' },
-  { key: 'text', label: 'settings.themeText' },
-  { key: 'subtext', label: 'settings.themeSubtext' },
-  { key: 'border', label: 'settings.themeBorder' },
-  { key: 'accent', label: 'settings.themeAccent' }
-]
-const customThemeModes = ['dark', 'light']
+const customThemeFields = CUSTOM_THEME_FIELDS
+const customThemeModes = CUSTOM_THEME_MODES
 const tabFormat = ref('')
 const oldPassword = ref('')
 const newPassword = ref('')
@@ -118,31 +108,42 @@ onMounted(async () => {
 
 function changeTheme(mode) {
   themeStore.setMode(mode)
+  settingsStore.themeMode = mode
   settingsStore.applyThemeColors()
   settingsStore.updateSettings({ theme_mode: mode })
 }
 
-function changeAccentColor(color) {
-  if (settingsStore.customThemeEnabled) {
-    const mode = themeStore.resolved === 'light' ? 'light' : 'dark'
-    settingsStore.updateCustomThemeColor(mode, 'accent', color)
-    return
-  }
-  settingsStore.accentColor = color
-  settingsStore.applyAccentColor()
-  settingsStore.updateSettings({ accent_color: color })
+function previewAccentColor(color) {
+  settingsStore.previewAccentColor(color)
+}
+
+function saveAccentColor(color) {
+  settingsStore.saveAccentColor(color)
+}
+
+function selectAccentColor(color) {
+  previewAccentColor(color)
+  saveAccentColor(color)
 }
 
 function onCustomColorInput(e) {
-  changeAccentColor(e.target.value)
+  previewAccentColor(e.target.value)
+}
+
+function onCustomColorChange(e) {
+  saveAccentColor(e.target.value)
 }
 
 function toggleCustomTheme(enabled) {
   settingsStore.toggleCustomTheme(enabled)
 }
 
-function changeCustomThemeColor(mode, key, color) {
-  settingsStore.updateCustomThemeColor(mode, key, color)
+function previewCustomThemeColor(mode, key, color) {
+  settingsStore.previewCustomThemeColor(mode, key, color)
+}
+
+function saveCustomThemeColor(mode, key, color) {
+  settingsStore.saveCustomThemeColor(mode, key, color)
 }
 
 function resetCustomTheme() {
@@ -346,14 +347,19 @@ function logout() {
                   class="color-preset"
                   :class="{ active: activeThemeAccent === color }"
                   :style="{ background: color }"
-                  @click="changeAccentColor(color)"
+                  @click="selectAccentColor(color)"
                 >
                   <svg v-if="activeThemeAccent === color" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </button>
                 <label class="color-custom" :title="t('settings.accentColor')">
-                  <input type="color" :value="activeThemeAccent" @input="onCustomColorInput" />
+                  <input
+                    type="color"
+                    :value="activeThemeAccent"
+                    @input="onCustomColorInput"
+                    @change="onCustomColorChange"
+                  />
                   <span class="color-custom-icon">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="10" />
@@ -399,7 +405,8 @@ function logout() {
                         <input
                           type="color"
                           :value="settingsStore.customTheme[mode][field.key]"
-                          @input="changeCustomThemeColor(mode, field.key, $event.target.value)"
+                          @input="previewCustomThemeColor(mode, field.key, $event.target.value)"
+                          @change="saveCustomThemeColor(mode, field.key, $event.target.value)"
                         />
                         <code>{{ settingsStore.customTheme[mode][field.key] }}</code>
                       </div>

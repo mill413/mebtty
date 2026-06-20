@@ -15,10 +15,12 @@ watch(
 
 let handler = null
 
-onMounted(() => {
+onMounted(async () => {
   handler = () => themeStore.onSystemThemeChange()
   mediaQuery.addEventListener('change', handler)
-  settingsStore.fetchSettings()
+  await settingsStore.fetchSettings()
+  themeStore.setMode(settingsStore.themeMode)
+  settingsStore.applyThemeColors()
 })
 
 onUnmounted(() => {
