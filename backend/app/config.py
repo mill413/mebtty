@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     REGISTRATION_ENABLED: bool = True
     ALLOW_ROOT_LOCAL_USER: bool = False
     PAM_SERVICE: str = "login"
+    PLUGIN_DIR: str = "./plugins"
+    PLUGIN_MAX_SIZE: int = 20 * 1024 * 1024  # 20MB
+    PLUGIN_INSTALL_ENABLED: bool = True
+    PLUGIN_SIGNATURE_REQUIRED: bool = False
+    PLUGIN_BACKEND_CODE_ENABLED: bool = False
 
     class Config:
         env_prefix = "MEBTTY_"

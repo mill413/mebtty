@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 # Import models so they're registered with Base.metadata before init_db
-from app.models import User, Session, CommandLog, AuditEvent, UserSettings  # noqa: F401
+from app.models import User, Session, CommandLog, AuditEvent, UserSettings, Plugin  # noqa: F401
 
 from app.auth.router import router as auth_router
 from app.session.router import router as session_router
@@ -16,6 +16,7 @@ from app.terminal.router import router as terminal_router
 from app.audit.router import router as audit_router
 from app.file.router import router as file_router
 from app.settings.router import router as settings_router
+from app.plugins.router import router as plugins_router
 from app.database import init_db, async_session_factory
 
 logging.basicConfig(level=logging.INFO)
@@ -117,6 +118,10 @@ async def migrate_db():
             await conn.execute(text("ALTER TABLE user_settings ADD COLUMN custom_theme TEXT DEFAULT '{}' NOT NULL"))
             logger.info("Migration: added 'custom_theme' column to user_settings")
 
+        if "plugin_settings" not in settings_columns:
+            await conn.execute(text("ALTER TABLE user_settings ADD COLUMN plugin_settings TEXT DEFAULT '{}' NOT NULL"))
+            logger.info("Migration: added 'plugin_settings' column to user_settings")
+
         result = await conn.execute(text("PRAGMA table_info(sessions)"))
         session_columns = {row[1] for row in result.fetchall()}
 
@@ -130,6 +135,11 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing database...")
     await init_db()
     await migrate_db()
+    from app.plugins.builtin import ensure_builtin_plugins
+
+    async with async_session_factory() as db:
+        await ensure_builtin_plugins(db)
+        await db.commit()
     await cleanup_stale_sessions()
     await cleanup_expired_sessions()
     logger.info("MebTTY started")
@@ -158,6 +168,7 @@ app.include_router(terminal_router)
 app.include_router(audit_router)
 app.include_router(file_router)
 app.include_router(settings_router)
+app.include_router(plugins_router)
 
 
 @app.get("/api/health")

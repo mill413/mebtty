@@ -101,7 +101,26 @@ class UserSettings(Base):
     session_timeout = Column(Integer, default=0, nullable=False)  # 0 = disabled, value in hours
     file_auto_save = Column(Boolean, default=True, nullable=False)
     file_show_line_numbers = Column(Boolean, default=False, nullable=False)
+    plugin_settings = Column(Text, default="{}", nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
     user = relationship("User", back_populates="settings")
+
+
+class Plugin(Base):
+    __tablename__ = "plugins"
+
+    id = Column(String(128), primary_key=True)
+    name = Column(String(128), nullable=False)
+    version = Column(String(32), nullable=False)
+    type = Column(String(32), nullable=False)
+    builtin = Column(Boolean, default=False, nullable=False)
+    status = Column(String(16), default="installed", nullable=False, index=True)
+    source = Column(String(32), default="upload", nullable=False)
+    install_path = Column(String(512), nullable=True)
+    manifest_json = Column(Text, default="{}", nullable=False)
+    permissions_json = Column(Text, default="[]", nullable=False)
+    installed_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    enabled_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)

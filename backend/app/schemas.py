@@ -92,6 +92,7 @@ class UserSettingsUpdate(BaseModel):
     session_timeout: Optional[int] = None
     file_auto_save: Optional[bool] = None
     file_show_line_numbers: Optional[bool] = None
+    plugin_settings: Optional[str] = None
 
     @field_validator("theme_mode")
     @classmethod
@@ -138,6 +139,22 @@ class UserSettingsUpdate(BaseModel):
 
         return json.dumps(parsed, separators=(",", ":"))
 
+    @field_validator("plugin_settings")
+    @classmethod
+    def validate_plugin_settings(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError("plugin_settings must be valid JSON") from exc
+
+        if not isinstance(parsed, dict):
+            raise ValueError("plugin_settings must be a JSON object")
+
+        return json.dumps(parsed, separators=(",", ":"))
+
 
 class UserSettingsResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -151,6 +168,7 @@ class UserSettingsResponse(BaseModel):
     session_timeout: int
     file_auto_save: bool
     file_show_line_numbers: bool
+    plugin_settings: str
 
 
 class PasswordChange(BaseModel):
