@@ -364,7 +364,9 @@ mebtty/
 │       └── README.md
 ├── docs/
 │   ├── plugin-system.md         # Plugin package and frontend API guide
-│   └── release.md               # Branch, release, tag, and AUR workflow
+│   ├── plugin-system.zh-CN.md   # Plugin guide in Simplified Chinese
+│   ├── release.md               # Branch, release, tag, and AUR workflow
+│   └── release.zh-CN.md         # Release guide in Simplified Chinese
 ├── Dockerfile                   # Multi-stage Docker build
 ├── docker-compose.yml           # Docker Compose configuration
 ├── deploy.sh                    # One-click deployment script
@@ -501,7 +503,7 @@ The deployment script also provides a local hot-reload mode:
 ./deploy.sh --local-test
 ```
 
-See [`docs/plugin-system.md`](docs/plugin-system.md) for plugin development and package format details. See [`docs/release.md`](docs/release.md) for the release, tag, package, and AUR publishing workflow.
+See [`docs/plugin-system.md`](docs/plugin-system.md) for plugin development and package format details. See [`docs/release.md`](docs/release.md) for the release, tag, package, and AUR publishing workflow. Simplified Chinese versions are available at [`docs/plugin-system.zh-CN.md`](docs/plugin-system.zh-CN.md) and [`docs/release.zh-CN.md`](docs/release.zh-CN.md).
 
 ## Open Source & Third-Party Notices
 

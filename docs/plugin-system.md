@@ -1,5 +1,7 @@
 # Plugin System
 
+**English** | [简体中文](plugin-system.zh-CN.md)
+
 MebTTY plugins are `.mtpx` packages. A package is a zip archive with a required `mebtty.plugin.json` manifest at the archive root and optional frontend assets beside it.
 
 The current plugin runtime is frontend-focused. It supports UI panels, toolbar items, settings sections, themes, icon packs, and file providers. Backend plugin code is intentionally disabled by default.

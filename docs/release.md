@@ -1,5 +1,7 @@
 # Release Process
 
+**English** | [简体中文](release.zh-CN.md)
+
 This project keeps release-ready code on `master` and ongoing work on `develop`.
 
 ## Branch Model

@@ -356,8 +356,10 @@ mebtty/
 │   ├── deb/                     # Debian 包文件
 │   └── aur/                     # AUR 包文件
 ├── docs/
-│   ├── plugin-system.md         # 插件包格式和前端 API 指南
-│   └── release.md               # 分支、发布、tag 和 AUR 流程
+│   ├── plugin-system.md         # 插件包格式和前端 API 指南（英文）
+│   ├── plugin-system.zh-CN.md   # 插件包格式和前端 API 指南
+│   ├── release.md               # 分支、发布、tag 和 AUR 流程（英文）
+│   └── release.zh-CN.md         # 分支、发布、tag 和 AUR 流程
 ├── Dockerfile                   # 多阶段 Docker 构建
 ├── docker-compose.yml           # Docker Compose 配置
 ├── deploy.sh                    # 一键部署脚本
@@ -494,7 +496,7 @@ npm run dev
 ./deploy.sh --local-test
 ```
 
-插件开发和包格式见 [`docs/plugin-system.md`](docs/plugin-system.md)。发布、tag、包构建和 AUR 推送流程见 [`docs/release.md`](docs/release.md)。
+插件开发和包格式见 [`docs/plugin-system.zh-CN.md`](docs/plugin-system.zh-CN.md)。发布、tag、包构建和 AUR 推送流程见 [`docs/release.zh-CN.md`](docs/release.zh-CN.md)。英文版本见 [`docs/plugin-system.md`](docs/plugin-system.md) 和 [`docs/release.md`](docs/release.md)。
 
 ## 开源项目与第三方声明
 
