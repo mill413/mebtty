@@ -1,3 +1,4 @@
+import json
 import shutil
 import tempfile
 import zipfile
@@ -7,11 +8,34 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import Plugin
+from app.models import Plugin, utcnow
 from app.plugins.manager import create_plugin_from_manifest
 from app.plugins.manifest import PLUGIN_PACKAGE_SUFFIX, load_manifest
 
 MAX_PLUGIN_FILES = 1000
+
+
+def _replace_tree(source: Path, target: Path) -> None:
+    staging = target.with_name(f".{target.name}.tmp")
+    shutil.rmtree(staging, ignore_errors=True)
+    shutil.copytree(source, staging)
+    if target.exists():
+        shutil.rmtree(target)
+    staging.replace(target)
+
+
+def _update_plugin_from_manifest(plugin: Plugin, manifest: dict, install_path: str) -> Plugin:
+    plugin.name = manifest["name"]
+    plugin.version = manifest["version"]
+    plugin.type = manifest["type"]
+    plugin.source = "upload"
+    plugin.install_path = install_path
+    plugin.manifest_json = json.dumps(manifest, separators=(",", ":"), sort_keys=True)
+    plugin.permissions_json = json.dumps(manifest.get("permissions", []), separators=(",", ":"))
+    plugin.updated_at = utcnow()
+    if plugin.status not in {"enabled", "disabled", "installed", "error"}:
+        plugin.status = "installed"
+    return plugin
 
 
 def _safe_zip_members(package: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
@@ -104,27 +128,29 @@ async def install_plugin_package(
                 detail=str(exc),
             ) from exc
 
-        existing = await db.get(Plugin, manifest.id)
-        if existing is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Plugin is already installed",
-            )
-
         install_dir = Path(settings.PLUGIN_DIR).resolve() / manifest.id / manifest.version
-        if install_dir.exists():
+        install_dir.parent.mkdir(parents=True, exist_ok=True)
+        existing = await db.get(Plugin, manifest.id)
+
+        if existing is not None and existing.builtin:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Plugin version is already installed on disk",
+                detail="Built-in plugins cannot be replaced",
             )
 
-        install_dir.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(extract_dir, install_dir)
+        previous_install_path = Path(existing.install_path).resolve() if existing and existing.install_path else None
+        _replace_tree(extract_dir, install_dir)
 
-        plugin = create_plugin_from_manifest(
-            manifest=manifest.model_dump(by_alias=True),
-            install_path=str(install_dir),
-        )
-        db.add(plugin)
+        manifest_data = manifest.model_dump(by_alias=True)
+        if existing is None:
+            plugin = create_plugin_from_manifest(
+                manifest=manifest_data,
+                install_path=str(install_dir),
+            )
+            db.add(plugin)
+        else:
+            plugin = _update_plugin_from_manifest(existing, manifest_data, str(install_dir))
+            if previous_install_path and previous_install_path != install_dir and previous_install_path.exists():
+                shutil.rmtree(previous_install_path, ignore_errors=True)
         await db.flush()
         return plugin
