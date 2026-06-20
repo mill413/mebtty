@@ -33,7 +33,8 @@ SyslogIdentifier=mebtty
 # sessions to the selected user's uid/gid, similar to sshd/login.
 NoNewPrivileges=false
 ProtectSystem=strict
-ReadWritePaths=/var/lib/mebtty /home
+# PAM modules such as pam_faillock need to update runtime auth state.
+ReadWritePaths=/var/lib/mebtty /home /run/faillock /var/run/faillock
 ProtectHome=false
 PrivateTmp=true
 
