@@ -1,4 +1,4 @@
-import { computed, h, reactive, ref, shallowRef } from 'vue'
+import { computed, h, markRaw, reactive, ref, shallowRef } from 'vue'
 import api from '../services/api'
 
 const state = reactive({
@@ -93,6 +93,10 @@ function normalizeContribution(plugin, contribution, type) {
     pluginVersion: plugin.version
   }
 
+  if (normalized.component && typeof normalized.component === 'object') {
+    normalized.component = markRaw(normalized.component)
+  }
+
   if (type === 'fileProvider' && normalized.id === localFileProvider.id) {
     return { ...localFileProvider, ...normalized }
   }
@@ -132,6 +136,7 @@ function registerManifestContributions(plugin) {
 function createPluginContext(plugin) {
   return {
     plugin,
+    api,
     vue: {
       h,
       ref,
