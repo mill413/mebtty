@@ -156,6 +156,8 @@ jobs:
 
           docker run --rm \
             -v "$AUR_DIR:/pkg" \
+            -e HOST_UID="$(id -u)" \
+            -e HOST_GID="$(id -g)" \
             archlinux:latest \
             bash -lc '
               set -euo pipefail
@@ -164,6 +166,7 @@ jobs:
               chown -R builder:builder /pkg
               su builder -c "cd /pkg && makepkg --printsrcinfo > .SRCINFO"
               su builder -c "cd /pkg && makepkg --source --noconfirm --skipinteg --noextract"
+              chown -R "${HOST_UID}:${HOST_GID}" /pkg
             '
 
           mv "$AUR_DIR/${{ steps.version.outputs.aur_src }}" "${{ steps.version.outputs.aur_src }}"
