@@ -211,6 +211,7 @@ export default {
     installedPluginsDesc: '組み込みプラグインとインストール済みサードパーティープラグインを管理',
     pluginSettings: 'プラグイン設定',
     pluginSettingsDesc: '有効なプラグインが提供する設定セクション',
+    pluginAdminRequired: 'プラグインのインストールまたは管理には管理者権限が必要です。',
     pluginLoading: 'プラグインを読み込み中...',
     noPlugins: 'プラグインがありません',
     pluginBuiltin: '組み込み',

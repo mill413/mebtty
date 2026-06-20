@@ -212,6 +212,7 @@ export default {
     installedPluginsDesc: 'Manage built-in plugins and installed third-party plugins',
     pluginSettings: 'Plugin Settings',
     pluginSettingsDesc: 'Settings sections contributed by enabled plugins',
+    pluginAdminRequired: 'Administrator privileges are required to install or manage plugins.',
     pluginLoading: 'Loading plugins...',
     noPlugins: 'No plugins',
     pluginBuiltin: 'Built-in',

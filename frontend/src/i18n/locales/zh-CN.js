@@ -212,6 +212,7 @@ export default {
     installedPluginsDesc: '管理内置插件和已安装的第三方插件',
     pluginSettings: '插件设置',
     pluginSettingsDesc: '已启用插件贡献的设置项',
+    pluginAdminRequired: '安装或管理插件需要管理员权限。',
     pluginLoading: '正在加载插件...',
     noPlugins: '没有插件',
     pluginBuiltin: '内置',

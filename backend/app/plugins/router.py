@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_admin_user, get_current_user
 from app.audit.service import log_event
 from app.database import get_db
 from app.models import Plugin, User
@@ -69,7 +69,7 @@ async def get_plugin(
 @router.post("/install", response_model=PluginInstallResponse, status_code=status.HTTP_201_CREATED)
 async def install_plugin(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     plugin = await install_plugin_package(db, file)
@@ -83,7 +83,7 @@ async def install_plugin(
     return PluginInstallResponse(
         plugin=PluginResponse.model_validate(plugin),
         restart_required=False,
-        enabled=False,
+        enabled=plugin.status == "enabled",
         permissions=PluginResponse.model_validate(plugin).permissions,
     )
 
@@ -91,7 +91,7 @@ async def install_plugin(
 @router.post("/{plugin_id}/enable", response_model=PluginActionResponse)
 async def enable_plugin_endpoint(
     plugin_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     plugin = await enable_plugin(db, plugin_id)
@@ -108,7 +108,7 @@ async def enable_plugin_endpoint(
 @router.post("/{plugin_id}/disable", response_model=PluginActionResponse)
 async def disable_plugin_endpoint(
     plugin_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     plugin = await disable_plugin(db, plugin_id)
@@ -125,7 +125,7 @@ async def disable_plugin_endpoint(
 @router.delete("/{plugin_id}", response_model=PluginActionResponse)
 async def delete_plugin_endpoint(
     plugin_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     plugin = await get_plugin_or_404(db, plugin_id)

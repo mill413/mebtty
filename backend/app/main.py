@@ -99,6 +99,18 @@ async def migrate_db():
             await conn.execute(text("ALTER TABLE users ADD COLUMN login_shell VARCHAR(64)"))
             logger.info("Migration: added 'login_shell' column to users")
 
+        if "is_admin" not in existing_columns:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0 NOT NULL"))
+            logger.info("Migration: added 'is_admin' column to users")
+
+        admin_result = await conn.execute(text("SELECT COUNT(*) FROM users WHERE is_admin = 1"))
+        admin_count = admin_result.scalar_one()
+        user_result = await conn.execute(text("SELECT id FROM users ORDER BY created_at ASC LIMIT 1"))
+        first_user_id = user_result.scalar_one_or_none()
+        if admin_count == 0 and first_user_id is not None:
+            await conn.execute(text("UPDATE users SET is_admin = 1 WHERE id = :user_id"), {"user_id": first_user_id})
+            logger.info("Migration: promoted first user to admin")
+
         result = await conn.execute(text("PRAGMA table_info(user_settings)"))
         settings_columns = {row[1] for row in result.fetchall()}
 

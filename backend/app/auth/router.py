@@ -50,10 +50,11 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
             detail="Username already exists",
         )
 
+    count_result = await db.execute(select(func.count()).select_from(User))
+    user_count = count_result.scalar_one()
+
     # Block registration when disabled, but always allow first-time setup
     if not app_settings.REGISTRATION_ENABLED:
-        count_result = await db.execute(select(func.count()).select_from(User))
-        user_count = count_result.scalar_one()
         if user_count > 0:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -63,6 +64,7 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
     user = User(
         username=body.username,
         hashed_password=hash_password(body.password),
+        is_admin=user_count == 0,
     )
     db.add(user)
     await db.flush()

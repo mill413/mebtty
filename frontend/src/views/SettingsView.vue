@@ -53,6 +53,7 @@ const pluginInstalling = ref(false)
 const pluginSettingsSections = computed(() => pluginRuntime.settingsSections.value)
 const pluginThemes = computed(() => pluginRuntime.themes.value.filter((theme) => theme?.id && theme?.modes?.dark && theme?.modes?.light))
 const pluginIconPacks = computed(() => pluginRuntime.iconPacks.value.filter((pack) => pack?.id && pack?.assetsBase))
+const canManagePlugins = computed(() => authStore.isAdmin)
 const selectedPluginThemeId = computed(() => settingsStore.pluginSettings.activeThemeId || '')
 const selectedIconPackId = computed(() => settingsStore.pluginSettings.activeIconPackId || pluginIconPacks.value[0]?.id || '')
 const activeSection = ref('appearance')
@@ -323,6 +324,10 @@ async function installPlugin(event) {
   const file = event.target.files?.[0]
   event.target.value = ''
   if (!file) return
+  if (!canManagePlugins.value) {
+    setPluginNotice('', t('settings.pluginAdminRequired'))
+    return
+  }
 
   pluginInstalling.value = true
   setPluginNotice()
@@ -341,6 +346,7 @@ async function installPlugin(event) {
 }
 
 async function enablePlugin(plugin) {
+  if (!canManagePlugins.value) return
   setPluginNotice()
   try {
     await api.post(`/api/plugins/${encodeURIComponent(plugin.id)}/enable`)
@@ -352,6 +358,7 @@ async function enablePlugin(plugin) {
 }
 
 async function disablePlugin(plugin) {
+  if (!canManagePlugins.value) return
   setPluginNotice()
   try {
     await api.post(`/api/plugins/${encodeURIComponent(plugin.id)}/disable`)
@@ -363,6 +370,7 @@ async function disablePlugin(plugin) {
 }
 
 async function deletePlugin(plugin) {
+  if (!canManagePlugins.value) return
   if (!window.confirm(t('settings.pluginDeleteConfirm', { name: plugin.name }))) return
 
   setPluginNotice()
@@ -376,7 +384,7 @@ async function deletePlugin(plugin) {
 }
 
 function canDisablePlugin(plugin) {
-  return !plugin.builtin || plugin.id === 'builtin.file-browser'
+  return canManagePlugins.value && (!plugin.builtin || plugin.id === 'builtin.file-browser')
 }
 
 function pluginStatusLabel(status) {
@@ -817,8 +825,8 @@ function pluginPermissionLabel(permission) {
             </div>
             <div class="setting-control-full">
               <div class="plugin-toolbar">
-                <label class="btn-upload" :class="{ disabled: pluginInstalling }">
-                  <input type="file" accept=".mtpx" @change="installPlugin" hidden :disabled="pluginInstalling" />
+                <label class="btn-upload" :class="{ disabled: pluginInstalling || !canManagePlugins }">
+                  <input type="file" accept=".mtpx" @change="installPlugin" hidden :disabled="pluginInstalling || !canManagePlugins" />
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                     <polyline points="17 8 12 3 7 8" />
@@ -830,6 +838,7 @@ function pluginPermissionLabel(permission) {
                   {{ pluginsLoading ? t('settings.pluginRefreshing') : t('settings.pluginRefresh') }}
                 </button>
               </div>
+              <p v-if="!canManagePlugins" class="plugin-empty">{{ t('settings.pluginAdminRequired') }}</p>
               <p v-if="pluginsError" class="msg-error">{{ pluginsError }}</p>
               <p v-if="pluginsMessage" class="msg-success">{{ pluginsMessage }}</p>
             </div>
@@ -871,14 +880,14 @@ function pluginPermissionLabel(permission) {
                   </div>
                   <div class="plugin-actions">
                     <button
-                      v-if="plugin.status !== 'enabled'"
+                      v-if="canManagePlugins && plugin.status !== 'enabled'"
                       class="btn-secondary"
                       @click="enablePlugin(plugin)"
                     >
                       {{ t('settings.pluginEnable') }}
                     </button>
                     <button
-                      v-else
+                      v-else-if="canManagePlugins"
                       class="btn-secondary"
                       @click="disablePlugin(plugin)"
                       :disabled="!canDisablePlugin(plugin)"
@@ -886,7 +895,7 @@ function pluginPermissionLabel(permission) {
                       {{ t('settings.pluginDisable') }}
                     </button>
                     <button
-                      v-if="!plugin.builtin"
+                      v-if="canManagePlugins && !plugin.builtin"
                       class="btn-danger"
                       @click="deletePlugin(plugin)"
                     >

@@ -212,6 +212,7 @@ export default {
     installedPluginsDesc: '管理內建外掛和已安裝的第三方外掛',
     pluginSettings: '外掛設定',
     pluginSettingsDesc: '已啟用外掛提供的設定項',
+    pluginAdminRequired: '安裝或管理外掛需要管理員權限。',
     pluginLoading: '正在載入外掛...',
     noPlugins: '沒有外掛',
     pluginBuiltin: '內建',
