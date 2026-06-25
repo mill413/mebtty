@@ -21,7 +21,6 @@ StateDirectory=mebtty
 LogsDirectory=mebtty
 Environment=MEBTTY_DATABASE_URL=sqlite+aiosqlite:////var/lib/mebtty/mebtty.db
 Environment=MEBTTY_UPLOAD_DIR=/var/lib/mebtty/uploads
-Environment=MEBTTY_BROWSE_ROOT=/var/lib/mebtty
 Environment=MEBTTY_PLUGIN_DIR=/var/lib/mebtty/plugins
 
 # Logging to systemd journal

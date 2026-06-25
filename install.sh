@@ -74,6 +74,9 @@ MEBTTY_SECRET_KEY=$SECRET
 MEBTTY_HOST=0.0.0.0
 MEBTTY_PORT=18888
 MEBTTY_PAM_SERVICE=login
+
+# Optional fixed root directory exposed by the file browser.
+# MEBTTY_BROWSE_ROOT=/home/your-user
 EOF
         chown root:root "$ENV_FILE"
         chmod 640 "$ENV_FILE"

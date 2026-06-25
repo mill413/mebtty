@@ -80,8 +80,8 @@ MEBTTY_PAM_SERVICE=login
 # Allow trusted backend plugin code execution.
 # MEBTTY_PLUGIN_BACKEND_CODE_ENABLED=false
 
-# Root directory exposed by the file browser.
-# MEBTTY_BROWSE_ROOT=/var/lib/mebtty
+# Optional fixed root directory exposed by the file browser.
+# MEBTTY_BROWSE_ROOT=/home/your-user
 
 # Path to frontend build output. Leave empty to auto-detect bundled assets.
 # MEBTTY_STATIC_DIR=
@@ -148,8 +148,8 @@ _mebtty_append_optional_env() {
     "false"
   _mebtty_append_commented_env "${env_file}" \
     "MEBTTY_BROWSE_ROOT" \
-    "Root directory exposed by the file browser." \
-    "/var/lib/mebtty"
+    "Optional fixed root directory exposed by the file browser." \
+    "/home/your-user"
   _mebtty_append_commented_env "${env_file}" \
     "MEBTTY_STATIC_DIR" \
     "Path to frontend build output. Leave empty to auto-detect bundled assets." \
