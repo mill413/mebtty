@@ -3,7 +3,7 @@
   <desc id="desc">A compact prompt mark combining a greater-than sign, the letter M, and a terminal underline.</desc>
   <g fill="none" stroke="#7c3aed" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
     <path d="M20 38l28 26-28 26"/>
-    <path d="M62 90V38l18 28 18-28v52"/>
-    <path d="M60 106h42"/>
+    <path d="M70 90V38l18 28 18-28v52"/>
+    <path d="M68 106h42"/>
   </g>
 </svg>
