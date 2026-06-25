@@ -56,7 +56,7 @@ const pluginIconPacks = computed(() => pluginRuntime.iconPacks.value.filter((pac
 const canManagePlugins = computed(() => authStore.isAdmin)
 const selectedPluginThemeId = computed(() => settingsStore.pluginSettings.activeThemeId || '')
 const selectedIconPackId = computed(() => settingsStore.pluginSettings.activeIconPackId || pluginIconPacks.value[0]?.id || '')
-const activeSection = ref('appearance')
+const activeNavKey = ref('appearance')
 const sectionRefs = ref({})
 const activeThemeAccent = computed(() => {
   if (!settingsStore.customThemeEnabled) return settingsStore.accentColor
@@ -65,20 +65,78 @@ const activeThemeAccent = computed(() => {
 })
 
 const settingSections = [
-  { key: 'appearance', label: 'settings.sectionAppearance' },
-  { key: 'terminal', label: 'settings.sectionTerminal' },
-  { key: 'files', label: 'settings.sectionFiles' },
-  { key: 'status', label: 'settings.sectionStatus' },
-  { key: 'plugins', label: 'settings.sectionPlugins' },
-  { key: 'account', label: 'settings.sectionAccount' }
+  {
+    key: 'appearance',
+    label: 'settings.sectionAppearance',
+    children: [
+      { key: 'appearance-language', label: 'settings.language' },
+      { key: 'appearance-color-mode', label: 'settings.colorMode' },
+      { key: 'appearance-plugin-theme', label: 'settings.pluginTheme', visible: () => pluginThemes.value.length > 0 },
+      { key: 'appearance-accent', label: 'settings.accentColor' },
+      { key: 'appearance-custom-theme', label: 'settings.customTheme' },
+      { key: 'appearance-custom-colors', label: 'settings.customThemeColors', visible: () => settingsStore.customThemeEnabled }
+    ]
+  },
+  {
+    key: 'terminal',
+    label: 'settings.sectionTerminal',
+    children: [
+      { key: 'terminal-title-format', label: 'settings.tabTitleFormat' },
+      { key: 'terminal-session-timeout', label: 'settings.sessionTimeout' }
+    ]
+  },
+  {
+    key: 'files',
+    label: 'settings.sectionFiles',
+    children: [
+      { key: 'files-sidebar-position', label: 'settings.sidebarPosition' },
+      { key: 'files-icon-pack', label: 'settings.fileIconPack', visible: () => pluginIconPacks.value.length > 0 },
+      { key: 'files-auto-save', label: 'settings.fileAutoSave' },
+      { key: 'files-line-numbers', label: 'settings.fileLineNumbers' }
+    ]
+  },
+  {
+    key: 'status',
+    label: 'settings.sectionStatus',
+    children: [
+      { key: 'status-bar', label: 'settings.statusBar' },
+      { key: 'status-items', label: 'settings.statusBarItems', visible: () => settingsStore.statusBarVisible }
+    ]
+  },
+  {
+    key: 'plugins',
+    label: 'settings.sectionPlugins',
+    children: [
+      { key: 'plugins-install', label: 'settings.pluginInstall' },
+      { key: 'plugins-settings', label: 'settings.pluginSettings', visible: () => pluginSettingsSections.value.length > 0 },
+      { key: 'plugins-installed', label: 'settings.installedPlugins' }
+    ]
+  },
+  {
+    key: 'account',
+    label: 'settings.sectionAccount',
+    children: [
+      { key: 'account-avatar', label: 'settings.avatar' },
+      { key: 'account-password', label: 'settings.changePassword' }
+    ]
+  }
 ]
+
+function visibleChildren(section) {
+  return (section.children || []).filter((child) => !child.visible || child.visible())
+}
+
+function isSectionActive(section) {
+  if (activeNavKey.value === section.key) return true
+  return (section.children || []).some((child) => child.key === activeNavKey.value)
+}
 
 function setSectionRef(key, el) {
   if (el) sectionRefs.value[key] = el
 }
 
 function scrollToSection(key) {
-  activeSection.value = key
+  activeNavKey.value = key
   sectionRefs.value[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -427,15 +485,30 @@ function pluginPermissionLabel(permission) {
 
     <main class="settings-layout">
       <nav class="settings-sidebar" :aria-label="t('settings.categories')">
-        <button
+        <div
           v-for="section in settingSections"
           :key="section.key"
-          class="settings-nav-item"
-          :class="{ active: activeSection === section.key }"
-          @click="scrollToSection(section.key)"
+          class="settings-nav-group"
         >
-          {{ t(section.label) }}
-        </button>
+          <button
+            class="settings-nav-item"
+            :class="{ active: isSectionActive(section) }"
+            @click="scrollToSection(section.key)"
+          >
+            {{ t(section.label) }}
+          </button>
+          <div class="settings-subnav">
+            <button
+              v-for="child in visibleChildren(section)"
+              :key="child.key"
+              class="settings-subnav-item"
+              :class="{ active: activeNavKey === child.key }"
+              @click="scrollToSection(child.key)"
+            >
+              {{ t(child.label) }}
+            </button>
+          </div>
+        </div>
       </nav>
 
       <section class="settings-content">
@@ -444,7 +517,7 @@ function pluginPermissionLabel(permission) {
             <h2>{{ t('settings.sectionAppearance') }}</h2>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('appearance-language', el)">
             <div class="setting-info">
               <h3>{{ t('settings.language') }}</h3>
               <p>{{ t('settings.languageDesc') }}</p>
@@ -457,7 +530,7 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('appearance-color-mode', el)">
             <div class="setting-info">
               <h3>{{ t('settings.colorMode') }}</h3>
               <p>{{ t('settings.colorModeDesc') }}</p>
@@ -495,7 +568,11 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row" v-if="pluginThemes.length">
+          <div
+            v-if="pluginThemes.length"
+            class="setting-row"
+            :ref="(el) => setSectionRef('appearance-plugin-theme', el)"
+          >
             <div class="setting-info">
               <h3>{{ t('settings.pluginTheme') }}</h3>
               <p>{{ t('settings.pluginThemeDesc') }}</p>
@@ -510,7 +587,7 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('appearance-accent', el)">
             <div class="setting-info">
               <h3>{{ t('settings.accentColor') }}</h3>
               <p>{{ t('settings.accentColorDesc') }}</p>
@@ -548,7 +625,7 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('appearance-custom-theme', el)">
             <div class="setting-info">
               <h3>{{ t('settings.customTheme') }}</h3>
               <p>{{ t('settings.customThemeDesc') }}</p>
@@ -561,7 +638,11 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row setting-row-column custom-theme-row" v-if="settingsStore.customThemeEnabled">
+          <div
+            v-if="settingsStore.customThemeEnabled"
+            class="setting-row setting-row-column custom-theme-row"
+            :ref="(el) => setSectionRef('appearance-custom-colors', el)"
+          >
             <div class="setting-info">
               <h3>{{ t('settings.customThemeColors') }}</h3>
               <p>{{ t('settings.customThemeColorsDesc') }}</p>
@@ -605,7 +686,7 @@ function pluginPermissionLabel(permission) {
             <h2>{{ t('settings.sectionTerminal') }}</h2>
           </div>
 
-          <div class="setting-row setting-row-column">
+          <div class="setting-row setting-row-column" :ref="(el) => setSectionRef('terminal-title-format', el)">
             <div class="setting-info">
               <h3>{{ t('settings.tabTitleFormat') }}</h3>
               <p>{{ t('settings.tabTitleFormatDesc') }}</p>
@@ -628,7 +709,7 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('terminal-session-timeout', el)">
             <div class="setting-info">
               <h3>{{ t('settings.sessionTimeout') }}</h3>
               <p>{{ t('settings.sessionTimeoutDesc') }}</p>
@@ -665,7 +746,7 @@ function pluginPermissionLabel(permission) {
             <h2>{{ t('settings.sectionFiles') }}</h2>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('files-sidebar-position', el)">
             <div class="setting-info">
               <h3>{{ t('settings.sidebarPosition') }}</h3>
               <p>{{ t('settings.sidebarPositionDesc') }}</p>
@@ -696,7 +777,11 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row" v-if="pluginIconPacks.length">
+          <div
+            v-if="pluginIconPacks.length"
+            class="setting-row"
+            :ref="(el) => setSectionRef('files-icon-pack', el)"
+          >
             <div class="setting-info">
               <h3>{{ t('settings.fileIconPack') }}</h3>
               <p>{{ t('settings.fileIconPackDesc') }}</p>
@@ -710,7 +795,7 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('files-auto-save', el)">
             <div class="setting-info">
               <h3>{{ t('settings.fileAutoSave') }}</h3>
               <p>{{ t('settings.fileAutoSaveDesc') }}</p>
@@ -723,7 +808,7 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('files-line-numbers', el)">
             <div class="setting-info">
               <h3>{{ t('settings.fileLineNumbers') }}</h3>
               <p>{{ t('settings.fileLineNumbersDesc') }}</p>
@@ -742,7 +827,7 @@ function pluginPermissionLabel(permission) {
             <h2>{{ t('settings.sectionStatus') }}</h2>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('status-bar', el)">
             <div class="setting-info">
               <h3>{{ t('settings.statusBar') }}</h3>
               <p>{{ t('settings.statusBarDesc') }}</p>
@@ -755,7 +840,11 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row setting-row-column" v-if="settingsStore.statusBarVisible">
+          <div
+            v-if="settingsStore.statusBarVisible"
+            class="setting-row setting-row-column"
+            :ref="(el) => setSectionRef('status-items', el)"
+          >
             <div class="setting-info">
               <h3>{{ t('settings.statusBarItems') }}</h3>
               <p>{{ t('settings.statusBarItemsDesc') }}</p>
@@ -803,7 +892,7 @@ function pluginPermissionLabel(permission) {
             <h2>{{ t('settings.sectionPlugins') }}</h2>
           </div>
 
-          <div class="setting-row setting-row-column">
+          <div class="setting-row setting-row-column" :ref="(el) => setSectionRef('plugins-install', el)">
             <div class="setting-info">
               <h3>{{ t('settings.pluginInstall') }}</h3>
               <p>{{ t('settings.pluginInstallDesc') }}</p>
@@ -829,7 +918,11 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div v-if="pluginSettingsSections.length" class="setting-row setting-row-column">
+          <div
+            v-if="pluginSettingsSections.length"
+            class="setting-row setting-row-column"
+            :ref="(el) => setSectionRef('plugins-settings', el)"
+          >
             <div class="setting-info">
               <h3>{{ t('settings.pluginSettings') }}</h3>
               <p>{{ t('settings.pluginSettingsDesc') }}</p>
@@ -845,7 +938,7 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row setting-row-column">
+          <div class="setting-row setting-row-column" :ref="(el) => setSectionRef('plugins-installed', el)">
             <div class="setting-info">
               <h3>{{ t('settings.installedPlugins') }}</h3>
               <p>{{ t('settings.installedPluginsDesc') }}</p>
@@ -914,7 +1007,7 @@ function pluginPermissionLabel(permission) {
             <h2>{{ t('settings.sectionAccount') }}</h2>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('account-avatar', el)">
             <div class="setting-info">
               <h3>{{ t('settings.avatar') }}</h3>
               <p>{{ t('settings.avatarDesc') }}</p>
@@ -938,7 +1031,7 @@ function pluginPermissionLabel(permission) {
             </div>
           </div>
 
-          <div class="setting-row setting-row-column">
+          <div class="setting-row setting-row-column" :ref="(el) => setSectionRef('account-password', el)">
             <div class="setting-info">
               <h3>{{ t('settings.changePassword') }}</h3>
               <p>{{ t('settings.changePasswordDesc') }}</p>
@@ -1061,6 +1154,12 @@ function pluginPermissionLabel(permission) {
   top: 0;
 }
 
+.settings-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .settings-nav-item {
   width: 100%;
   min-height: 34px;
@@ -1071,6 +1170,9 @@ function pluginPermissionLabel(permission) {
   color: var(--subtext);
   font-size: 13px;
   text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
   transition: all var(--transition);
 }
@@ -1084,6 +1186,42 @@ function pluginPermissionLabel(permission) {
   background: var(--surface);
   border-color: var(--border);
   color: var(--accent);
+}
+
+.settings-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0 0 6px 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.settings-subnav-item {
+  width: 100%;
+  min-height: 28px;
+  padding: 0 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--subtext);
+  font-size: 12px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.settings-subnav-item:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.settings-subnav-item.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .settings-content {
@@ -1118,6 +1256,7 @@ function pluginPermissionLabel(permission) {
   padding: 20px 0;
   border-bottom: 1px solid var(--border);
   gap: 24px;
+  scroll-margin-top: 16px;
 }
 
 @media (max-width: 760px) {
@@ -1135,10 +1274,18 @@ function pluginPermissionLabel(permission) {
     padding-bottom: 2px;
   }
 
+  .settings-nav-group {
+    flex: 0 0 auto;
+  }
+
   .settings-nav-item {
     width: auto;
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+
+  .settings-subnav {
+    display: none;
   }
 }
 
