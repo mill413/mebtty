@@ -10,6 +10,8 @@ After installing, adjust the PAM service in `/etc/mebtty/mebtty.env` if your sys
 MEBTTY_PAM_SERVICE=login
 ```
 
+The file browser normally starts from the active terminal's current working directory. If no active terminal directory is available yet, it starts from the current MebTTY user's most recent local terminal user's home directory, not from the systemd service account's home directory. Set `MEBTTY_BROWSE_ROOT` in `/etc/mebtty/mebtty.env` only when you want a fixed browse root.
+
 Start the service manually after installation:
 
 ```bash

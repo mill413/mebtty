@@ -112,6 +112,8 @@ sudo dpkg -P mebtty
 sudo systemctl restart mebtty
 ```
 
+文件浏览器通常从活动终端的当前工作目录开始。如果还没有活动终端目录，则从当前 MebTTY 用户最近登录过的本地终端用户家目录开始，而不是从 systemd 服务账户的家目录开始。只有需要固定所有文件浏览请求的根目录时，才在 `/etc/mebtty/mebtty.env` 中设置 `MEBTTY_BROWSE_ROOT`。
+
 插件相关配置项包括：
 
 ```bash

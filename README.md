@@ -58,8 +58,9 @@ Deploy with a single script or Docker — and access your server from anywhere.
 - **Optional Line Numbers** — File editor line numbers can be enabled in settings
 - **Catppuccin File Icons** — 200+ themed SVG icons for files and folders
 - **Context Menu** — Right-click for quick file operations
-- **Configurable Root** — Set the browse root directory via environment variable
-- **Path Safety Checks** — Relative paths start from the configured browse root; absolute paths are resolved and rely on OS permissions
+- **Local User Defaults** — First open follows the active terminal `cwd`; otherwise it starts from the most recent local terminal user's home directory
+- **Configurable Root** — Override the file browser root with `MEBTTY_BROWSE_ROOT`
+- **Path Safety Checks** — Relative paths start from the resolved browse root; absolute paths are resolved and rely on OS permissions
 
 ### Appearance & Customization
 
@@ -208,6 +209,8 @@ sudo ./install.sh
 
 After installation, MebTTY runs as a managed systemd service. The service starts as root so it can authenticate local users with PAM and drop terminal sessions to the selected user's uid/gid, similar to `sshd` and `login`.
 
+The file browser does not use the systemd service account's home directory as its normal starting point. When opened from an active terminal, it starts from that terminal's current working directory. If there is no active terminal path yet, it falls back to the current MebTTY user's most recent local terminal user's home directory. Set `MEBTTY_BROWSE_ROOT` only when you want to force a fixed browse root for every file browser request.
+
 ```bash
 sudo systemctl start mebtty      # Start the service
 sudo systemctl stop mebtty       # Stop the service
@@ -246,7 +249,7 @@ All settings are configured via environment variables (prefix: `MEBTTY_`):
 | -------------------------------------- | -------------------------------------- | -------------------------------------------- |
 | `MEBTTY_SECRET_KEY`                    | Auto-generated                         | JWT signing key. **Set this in production.** |
 | `MEBTTY_DATABASE_URL`                  | `sqlite+aiosqlite:///./mebtty.db`      | Database connection string                   |
-| `MEBTTY_BROWSE_ROOT`                   | `~` (user home)                        | Root directory for the file browser          |
+| `MEBTTY_BROWSE_ROOT`                   | Local terminal user's home directory   | Optional fixed root directory for the file browser |
 | `MEBTTY_STATIC_DIR`                    | Auto-detected                          | Path to frontend build output                |
 | `MEBTTY_UPLOAD_DIR`                    | `./uploads`                            | Directory for uploaded files and avatars     |
 | `MEBTTY_ACCESS_TOKEN_EXPIRE_MINUTES`   | `60`                                   | JWT access token lifetime                    |
@@ -263,7 +266,7 @@ All settings are configured via environment variables (prefix: `MEBTTY_`):
 | `MEBTTY_PLUGIN_SIGNATURE_REQUIRED`     | `false`                                | Reserved flag for signature enforcement       |
 | `MEBTTY_PLUGIN_BACKEND_CODE_ENABLED`   | `false`                                | Reserved flag for trusted backend plugin code |
 
-When installed as a system service, the web application starts as root. When creating a terminal, users enter a local username and password. After PAM authentication succeeds, the terminal process drops privileges to that local user and defaults to that user's home directory when no working directory is provided.
+When installed as a system service, the web application starts as root. When creating a terminal, users enter a local username and password. After PAM authentication succeeds, the terminal process drops privileges to that local user and defaults to that user's home directory when no working directory is provided. The file browser uses the active terminal `cwd` or the most recent local terminal user's home directory by default, not the systemd service account's home directory.
 
 ### Production Example
 
