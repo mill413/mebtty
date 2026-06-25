@@ -21,21 +21,21 @@ export const useTerminalStore = defineStore('terminal', {
   },
 
   actions: {
-    async createSession(shell = '/bin/bash', title = '', cwd = '', localUser = '', localPassword = '') {
+    async createSession(shell = '/bin/bash', localUser = '', localPassword = '') {
+      const shellName = shell.split('/').pop()
       const { data } = await api.post('/api/sessions', {
-        title: title || `${shell.split('/').pop()} session`,
+        title: `${shellName} session`,
         shell,
-        cwd,
         local_user: localUser,
         local_password: localPassword
       })
       const tabId = ++tabIdCounter
       this.tabs.push({
         id: tabId,
-        title: title || `${shell.split('/').pop()} #${this.tabs.length + 1}`,
+        title: data.title || `${shellName} #${this.tabs.length + 1}`,
         sessionId: data.id,
         shell: shell,
-        cwd: cwd || data.cwd || '',
+        cwd: data.cwd || '',
         username: data.username || '',
         processName: data.process || '',
         iconOverride: null,
