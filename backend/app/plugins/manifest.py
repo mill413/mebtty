@@ -1,4 +1,5 @@
 import json
+from pathlib import PurePosixPath
 import re
 from typing import Any, Literal
 
@@ -35,9 +36,25 @@ ALLOWED_TYPES = {
 }
 
 
+def _validate_relative_asset_path(value: str | None) -> str | None:
+    if value in {None, "", "builtin"}:
+        return value
+    if "\x00" in value or "\\" in value or value.startswith("/"):
+        raise ValueError("plugin entry paths must be safe relative paths")
+    path = PurePosixPath(value)
+    if not path.name or "." in path.parts or ".." in path.parts:
+        raise ValueError("plugin entry paths must be safe relative paths")
+    return value
+
+
 class PluginEntry(BaseModel):
     frontend: str | None = None
     backend: str | None = None
+
+    @field_validator("frontend", "backend")
+    @classmethod
+    def validate_entry_path(cls, value: str | None) -> str | None:
+        return _validate_relative_asset_path(value)
 
 
 class PluginManifest(BaseModel):

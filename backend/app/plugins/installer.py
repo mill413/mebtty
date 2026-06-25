@@ -2,7 +2,7 @@ import json
 import shutil
 import tempfile
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,8 +49,17 @@ def _safe_zip_members(package: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
     total_uncompressed_size = 0
     for member in members:
         name = member.filename
-        path = Path(name)
-        if name.startswith("/") or ".." in path.parts:
+        path = PurePosixPath(name)
+        if (
+            not name
+            or "\x00" in name
+            or "\\" in name
+            or name.startswith("/")
+            or name.startswith("./")
+            or "/./" in name
+            or "." in path.parts
+            or ".." in path.parts
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Plugin package contains unsafe paths",
