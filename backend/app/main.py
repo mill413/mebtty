@@ -7,6 +7,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
+from app.config import DEFAULT_SECRET_KEY, settings as app_settings
+
 # Import models so they're registered with Base.metadata before init_db
 from app.models import User, Session, CommandLog, AuditEvent, UserSettings, Plugin  # noqa: F401
 
@@ -144,6 +146,10 @@ async def migrate_db():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if app_settings.SECRET_KEY == DEFAULT_SECRET_KEY:
+        raise RuntimeError(
+            "MEBTTY_SECRET_KEY must be changed from the historical insecure default"
+        )
     logger.info("Initializing database...")
     await init_db()
     await migrate_db()
@@ -187,9 +193,6 @@ app.include_router(plugins_router)
 async def health():
     return {"status": "ok", "version": "0.1.0"}
 
-
-# Serve frontend static files in production mode.
-from app.config import settings as app_settings
 
 STATIC_DIR = Path(app_settings.STATIC_DIR) if app_settings.STATIC_DIR else None
 if STATIC_DIR is None or not STATIC_DIR.is_dir():

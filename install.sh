@@ -75,6 +75,11 @@ MEBTTY_HOST=0.0.0.0
 MEBTTY_PORT=18888
 MEBTTY_PAM_SERVICE=login
 
+# Authentication rate limit. Set attempts to 0 to disable.
+# MEBTTY_AUTH_RATE_LIMIT_ATTEMPTS=5
+# MEBTTY_AUTH_RATE_LIMIT_WINDOW_SECONDS=300
+# MEBTTY_AUTH_RATE_LIMIT_LOCKOUT_SECONDS=300
+
 # Optional fixed root directory exposed by the file browser.
 # MEBTTY_BROWSE_ROOT=/home/your-user
 EOF

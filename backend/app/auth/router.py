@@ -3,12 +3,18 @@ import pwd
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.auth.rate_limit import (
+    auth_rate_limit_key,
+    check_auth_rate_limit,
+    record_auth_failure,
+    record_auth_success,
+)
 from app.auth.service import (
     create_access_token,
     create_refresh_token,
@@ -77,11 +83,19 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: UserCreate, db: AsyncSession = Depends(get_db)):
+async def login(
+    body: UserCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    rate_limit_key = auth_rate_limit_key("web-login", body.username, request)
+    check_auth_rate_limit(rate_limit_key)
+
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(body.password, user.hashed_password):
+        record_auth_failure(rate_limit_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
@@ -95,6 +109,7 @@ async def login(body: UserCreate, db: AsyncSession = Depends(get_db)):
 
     access_token = create_access_token({"sub": user.id})
     refresh_token = create_refresh_token({"sub": user.id})
+    record_auth_success(rate_limit_key)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 

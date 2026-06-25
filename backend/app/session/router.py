@@ -5,11 +5,17 @@ import shutil
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.auth.rate_limit import (
+    auth_rate_limit_key,
+    check_auth_rate_limit,
+    record_auth_failure,
+    record_auth_success,
+)
 from app.auth.service import create_terminal_ws_token
 from app.database import get_db
 from app.local_users import (
@@ -84,6 +90,7 @@ async def list_sessions(
 @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(
     body: SessionCreate,
+    request: Request,
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -93,9 +100,13 @@ async def create_session(
             detail="Local username and password are required",
         )
 
+    rate_limit_key = auth_rate_limit_key("local-login", body.local_user, request)
+    check_auth_rate_limit(rate_limit_key)
+
     try:
         local_user = resolve_local_user(body.local_user)
     except ValueError as exc:
+        record_auth_failure(rate_limit_key)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
@@ -110,10 +121,12 @@ async def create_session(
         ) from exc
 
     if not authenticated:
+        record_auth_failure(rate_limit_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid local username or password",
         )
+    record_auth_success(rate_limit_key)
 
     cwd = body.cwd or local_user.home
     shell = body.shell or local_user.shell

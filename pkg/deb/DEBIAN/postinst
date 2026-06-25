@@ -52,6 +52,18 @@ append_optional_env() {
         "Allow trusted backend plugin code execution." \
         "false"
     append_commented_env "$env_file" \
+        "MEBTTY_AUTH_RATE_LIMIT_ATTEMPTS" \
+        "Authentication rate limit attempts. Set to 0 to disable." \
+        "5"
+    append_commented_env "$env_file" \
+        "MEBTTY_AUTH_RATE_LIMIT_WINDOW_SECONDS" \
+        "Authentication rate limit window in seconds." \
+        "300"
+    append_commented_env "$env_file" \
+        "MEBTTY_AUTH_RATE_LIMIT_LOCKOUT_SECONDS" \
+        "Authentication rate limit lockout in seconds." \
+        "300"
+    append_commented_env "$env_file" \
         "MEBTTY_BROWSE_ROOT" \
         "Optional fixed root directory exposed by the file browser." \
         "/home/your-user"
@@ -121,6 +133,11 @@ MEBTTY_PORT=18888
 
 # PAM service used to verify local user passwords.
 MEBTTY_PAM_SERVICE=login
+
+# Authentication rate limit. Set attempts to 0 to disable.
+# MEBTTY_AUTH_RATE_LIMIT_ATTEMPTS=5
+# MEBTTY_AUTH_RATE_LIMIT_WINDOW_SECONDS=300
+# MEBTTY_AUTH_RATE_LIMIT_LOCKOUT_SECONDS=300
 
 # Database connection string.
 # MEBTTY_DATABASE_URL=sqlite+aiosqlite:////var/lib/mebtty/mebtty.db
