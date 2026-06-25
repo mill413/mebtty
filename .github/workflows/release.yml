@@ -65,7 +65,7 @@ jobs:
       - name: Build frontend
         run: |
           cd frontend
-          npm install
+          npm ci
           npm run build
 
       - name: Install Python dependencies
@@ -76,6 +76,12 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          source venv/bin/activate
+          PYTHONPATH=. python -m unittest discover -s tests -q
 
       - name: Build executable with PyInstaller
         run: |
