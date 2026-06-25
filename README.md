@@ -250,6 +250,9 @@ All settings are configured via environment variables (prefix: `MEBTTY_`):
 | `MEBTTY_SECRET_KEY`                    | Auto-generated                         | JWT signing key. **Set this in production.** |
 | `MEBTTY_DATABASE_URL`                  | `sqlite+aiosqlite:///./mebtty.db`      | Database connection string                   |
 | `MEBTTY_BROWSE_ROOT`                   | Local terminal user's home directory   | Optional fixed root directory for the file browser |
+| `MEBTTY_AUTH_RATE_LIMIT_ATTEMPTS`      | `5`                                    | Failed authentication attempts before lockout; set `0` to disable |
+| `MEBTTY_AUTH_RATE_LIMIT_WINDOW_SECONDS` | `300`                                  | Time window for failed authentication attempts |
+| `MEBTTY_AUTH_RATE_LIMIT_LOCKOUT_SECONDS` | `300`                                 | Lockout duration after too many failed authentication attempts |
 | `MEBTTY_STATIC_DIR`                    | Auto-detected                          | Path to frontend build output                |
 | `MEBTTY_UPLOAD_DIR`                    | `./uploads`                            | Directory for uploaded files and avatars     |
 | `MEBTTY_ACCESS_TOKEN_EXPIRE_MINUTES`   | `60`                                   | JWT access token lifetime                    |

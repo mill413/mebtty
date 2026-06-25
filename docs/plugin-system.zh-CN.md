@@ -15,7 +15,7 @@ my-plugin.mtpx
     └── index.js
 ```
 
-`mebtty.plugin.json` 必须位于 zip 根目录。安装前会拒绝目录遍历路径、绝对路径、过多文件数量，以及解压后大小超过 `MEBTTY_PLUGIN_MAX_SIZE` 的插件包。
+`mebtty.plugin.json` 必须位于 zip 根目录。安装前会拒绝目录遍历路径、绝对路径、反斜杠分隔路径、过多文件数量，以及解压后大小超过 `MEBTTY_PLUGIN_MAX_SIZE` 的插件包。manifest 中的 entry 路径（例如 `entry.frontend`）也必须是插件包内的安全相对路径。
 
 ## Manifest
 

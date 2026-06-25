@@ -59,6 +59,11 @@ MEBTTY_PORT=18888
 # PAM service used to verify local user passwords.
 MEBTTY_PAM_SERVICE=login
 
+# Authentication rate limit. Set attempts to 0 to disable.
+# MEBTTY_AUTH_RATE_LIMIT_ATTEMPTS=5
+# MEBTTY_AUTH_RATE_LIMIT_WINDOW_SECONDS=300
+# MEBTTY_AUTH_RATE_LIMIT_LOCKOUT_SECONDS=300
+
 # Database connection string.
 # MEBTTY_DATABASE_URL=sqlite+aiosqlite:////var/lib/mebtty/mebtty.db
 
@@ -80,8 +85,8 @@ MEBTTY_PAM_SERVICE=login
 # Allow trusted backend plugin code execution.
 # MEBTTY_PLUGIN_BACKEND_CODE_ENABLED=false
 
-# Root directory exposed by the file browser.
-# MEBTTY_BROWSE_ROOT=/var/lib/mebtty
+# Optional fixed root directory exposed by the file browser.
+# MEBTTY_BROWSE_ROOT=/home/your-user
 
 # Path to frontend build output. Leave empty to auto-detect bundled assets.
 # MEBTTY_STATIC_DIR=
@@ -147,9 +152,21 @@ _mebtty_append_optional_env() {
     "Allow trusted backend plugin code execution." \
     "false"
   _mebtty_append_commented_env "${env_file}" \
+    "MEBTTY_AUTH_RATE_LIMIT_ATTEMPTS" \
+    "Authentication rate limit attempts. Set to 0 to disable." \
+    "5"
+  _mebtty_append_commented_env "${env_file}" \
+    "MEBTTY_AUTH_RATE_LIMIT_WINDOW_SECONDS" \
+    "Authentication rate limit window in seconds." \
+    "300"
+  _mebtty_append_commented_env "${env_file}" \
+    "MEBTTY_AUTH_RATE_LIMIT_LOCKOUT_SECONDS" \
+    "Authentication rate limit lockout in seconds." \
+    "300"
+  _mebtty_append_commented_env "${env_file}" \
     "MEBTTY_BROWSE_ROOT" \
-    "Root directory exposed by the file browser." \
-    "/var/lib/mebtty"
+    "Optional fixed root directory exposed by the file browser." \
+    "/home/your-user"
   _mebtty_append_commented_env "${env_file}" \
     "MEBTTY_STATIC_DIR" \
     "Path to frontend build output. Leave empty to auto-detect bundled assets." \

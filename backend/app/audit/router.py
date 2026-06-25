@@ -57,5 +57,8 @@ async def list_user_events(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    if not current_user.is_admin and user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     events = await get_user_events(db, user_id, skip=skip, limit=limit)
     return events

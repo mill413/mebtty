@@ -15,7 +15,7 @@ my-plugin.mtpx
     └── index.js
 ```
 
-`mebtty.plugin.json` must be at the root of the zip archive. Directory traversal entries, absolute paths, excessive file counts, and packages whose expanded size exceeds `MEBTTY_PLUGIN_MAX_SIZE` are rejected before installation.
+`mebtty.plugin.json` must be at the root of the zip archive. Directory traversal entries, absolute paths, backslash-separated paths, excessive file counts, and packages whose expanded size exceeds `MEBTTY_PLUGIN_MAX_SIZE` are rejected before installation. Manifest entry paths, such as `entry.frontend`, must also be safe relative paths inside the package.
 
 ## Manifest
 

@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, WebSocket
+from fastapi import APIRouter, Query, WebSocket
 
 from app.terminal.ws_handler import websocket_endpoint
 
@@ -10,5 +10,9 @@ router = APIRouter(prefix="/api/terminal")
 
 
 @router.websocket("/ws/{session_id}")
-async def terminal_websocket(websocket: WebSocket, session_id: str):
-    await websocket_endpoint(websocket, session_id)
+async def terminal_websocket(
+    websocket: WebSocket,
+    session_id: str,
+    ticket: str | None = Query(None),
+):
+    await websocket_endpoint(websocket, session_id, ticket)

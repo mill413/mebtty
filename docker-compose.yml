@@ -8,7 +8,7 @@ services:
       - mebtty-data:/app/data
       - mebtty-uploads:/app/uploads
     environment:
-      - MEBTTY_SECRET_KEY=${MEBTTY_SECRET_KEY:-change-me-to-a-random-string-in-production}
+      - MEBTTY_SECRET_KEY=${MEBTTY_SECRET_KEY:?Set MEBTTY_SECRET_KEY to a persistent random value before starting Docker Compose}
       - MEBTTY_DATABASE_URL=sqlite+aiosqlite:////app/data/mebtty.db
     restart: unless-stopped
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTerminalStore } from '../stores/terminal'
 import { useAuthStore } from '../stores/auth'
@@ -7,10 +7,6 @@ import { useSettingsStore } from '../stores/settings'
 import TerminalTabs from '../components/terminal/TerminalTabs.vue'
 import TerminalPane from '../components/terminal/TerminalPane.vue'
 import StatusBar from '../components/layout/StatusBar.vue'
-import FileBrowser from '../components/terminal/FileBrowser.vue'
-import FileEditorPane from '../components/terminal/FileEditorPane.vue'
-import PluginPanelHost from '../components/plugins/PluginPanelHost.vue'
-import SettingsView from './SettingsView.vue'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
 import { usePluginRuntime } from '../plugins/registry'
@@ -22,6 +18,10 @@ import nuIcon from '../assets/shell-icons/nushell.svg'
 import terminalIcon from '../assets/shell-icons/terminal.svg'
 
 const { t } = useI18n()
+const SettingsView = defineAsyncComponent(() => import('./SettingsView.vue'))
+const FileBrowser = defineAsyncComponent(() => import('../components/terminal/FileBrowser.vue'))
+const FileEditorPane = defineAsyncComponent(() => import('../components/terminal/FileEditorPane.vue'))
+const PluginPanelHost = defineAsyncComponent(() => import('../components/plugins/PluginPanelHost.vue'))
 const route = useRoute()
 const router = useRouter()
 const terminalStore = useTerminalStore()

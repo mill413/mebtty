@@ -101,9 +101,21 @@ def _validate_path(user_id: str, session_id: str, relative_path: str) -> pathlib
     """Resolve and validate that the requested path stays within the user's upload directory."""
     base = _user_upload_dir(user_id).resolve()
     target = (_session_upload_dir(user_id, session_id) / relative_path).resolve()
-    if not str(target).startswith(str(base)):
+    try:
+        target.relative_to(base)
+    except ValueError:
         raise HTTPException(status_code=400, detail="Invalid path")
     return target
+
+
+def _validate_child_name(name: str, field: str = "name") -> str:
+    if not name:
+        raise HTTPException(status_code=400, detail=f"Invalid {field}")
+    if name in {".", ".."} or "/" in name or "\\" in name:
+        raise HTTPException(status_code=400, detail=f"Invalid {field}")
+    if pathlib.PurePath(name).name != name:
+        raise HTTPException(status_code=400, detail=f"Invalid {field}")
+    return name
 
 
 async def _get_browse_root(user_id: str, db: AsyncSession) -> pathlib.Path:
@@ -133,23 +145,31 @@ async def _get_browse_root(user_id: str, db: AsyncSession) -> pathlib.Path:
 
 
 async def _validate_browse_path(user_id: str, path: str, db: AsyncSession) -> pathlib.Path:
-    """Resolve browse path. If path is absolute, use it directly; otherwise relative to browse root."""
-    if path and path.startswith('/'):
-        # Absolute path — resolve directly, rely on OS permissions
+    """Resolve browse path and ensure it stays inside the user's browse root."""
+    root = await _get_browse_root(user_id, db)
+    if not path or path == "/":
+        target = root
+    elif path.startswith('/'):
         target = pathlib.Path(path).resolve()
     else:
-        # Empty or relative path — start from browse root
-        root = await _get_browse_root(user_id, db)
-        target = (root / path).resolve() if path else root
+        target = (root / path).resolve()
 
     if not target.exists():
         raise HTTPException(status_code=404, detail="Path not found")
 
-    # Basic security check: don't allow accessing paths outside the real filesystem root
-    if not str(target).startswith('/'):
-        raise HTTPException(status_code=400, detail="Invalid path")
+    try:
+        target.relative_to(root)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Path is outside the file browser root")
 
     return target
+
+
+async def _browse_parent(user_id: str, target: pathlib.Path, db: AsyncSession) -> str | None:
+    root = await _get_browse_root(user_id, db)
+    if target == root or target == pathlib.Path("/"):
+        return None
+    return str(target.parent)
 
 
 def _guess_mime(path: pathlib.Path) -> str:
@@ -197,7 +217,8 @@ async def upload_file(
     dest_dir = _session_upload_dir(current_user.id, session_id)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    file_path = dest_dir / file.filename
+    filename = _validate_child_name(file.filename, "filename")
+    file_path = dest_dir / filename
     size = 0
 
     async with aiofiles.open(file_path, "wb") as f:
@@ -215,7 +236,7 @@ async def upload_file(
                 )
             await f.write(chunk)
 
-    return {"filename": file.filename, "size": size}
+    return {"filename": filename, "size": size}
 
 
 @router.get("/download")
@@ -275,7 +296,8 @@ async def upload_to_browse_dir(
     if not dest.is_dir():
         raise HTTPException(status_code=400, detail="Target directory does not exist")
 
-    file_path = dest / file.filename
+    filename = _validate_child_name(file.filename, "filename")
+    file_path = dest / filename
     size = 0
 
     async with aiofiles.open(file_path, "wb") as f:
@@ -293,7 +315,7 @@ async def upload_to_browse_dir(
                 )
             await f.write(chunk)
 
-    return {"filename": file.filename, "size": size, "path": str(file_path)}
+    return {"filename": filename, "size": size, "path": str(file_path)}
 
 
 @router.get("/browse")
@@ -357,7 +379,7 @@ async def browse_directory(
     return {
         "path": str(target),
         "absolute_path": str(target),
-        "parent": str(target.parent) if target != pathlib.Path("/") else None,
+        "parent": await _browse_parent(current_user.id, target, db),
         "items": items,
     }
 
@@ -455,7 +477,8 @@ async def create_directory(
 ):
     """Create a new directory."""
     target = await _validate_browse_path(current_user.id, path, db)
-    new_dir = (target / name).resolve()
+    safe_name = _validate_child_name(name)
+    new_dir = (target / safe_name).resolve()
 
     if new_dir.exists():
         raise HTTPException(status_code=409, detail="Directory already exists")
@@ -506,7 +529,8 @@ async def rename_file(
     if not target.exists():
         raise HTTPException(status_code=404, detail="Path not found")
 
-    new_path = target.parent / new_name
+    safe_name = _validate_child_name(new_name, "new_name")
+    new_path = (target.parent / safe_name).resolve()
 
     if new_path.exists():
         raise HTTPException(status_code=409, detail="Target already exists")

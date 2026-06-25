@@ -28,6 +28,17 @@ def create_refresh_token(data: dict) -> str:
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
+def create_terminal_ws_token(user_id: str, session_id: str, expires_seconds: int = 60) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(seconds=expires_seconds)
+    payload = {
+        "sub": user_id,
+        "sid": session_id,
+        "exp": expire,
+        "type": "terminal_ws",
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
 def decode_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
