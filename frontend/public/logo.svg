@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">MebTTY logo</title>
+  <desc id="desc">A single-color line logo showing a terminal prompt and TTY signal paths.</desc>
+  <g fill="none" stroke="#7c3aed" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="18" y="22" width="92" height="84" rx="18"/>
+    <path d="M18 45h92"/>
+    <path d="M39 61l17 15-17 15"/>
+    <path d="M69 91h24"/>
+    <path d="M74 61v17"/>
+    <path d="M91 61v17"/>
+    <path d="M74 61l8.5 8 8.5-8"/>
+  </g>
+</svg>

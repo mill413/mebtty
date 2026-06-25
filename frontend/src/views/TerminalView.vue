@@ -357,10 +357,7 @@ function logout() {
     <div class="terminal-header">
       <div class="header-left">
         <button class="btn-home" @click="goHome" :title="t('terminal.home')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="4 17 10 11 4 5" />
-            <line x1="12" y1="19" x2="20" y2="19" />
-          </svg>
+          <img src="/logo.svg" alt="" aria-hidden="true" />
         </button>
         <span class="header-brand">MebTTY</span>
       </div>
@@ -503,10 +500,7 @@ function logout() {
         <div v-if="!isSettingsTab && !terminalStore.activeTab" class="welcome-page">
           <div class="welcome-hero">
             <div class="welcome-logo">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <polyline points="4 17 10 11 4 5" />
-                <line x1="12" y1="19" x2="20" y2="19" />
-              </svg>
+              <img src="/logo.svg" alt="MebTTY" />
             </div>
             <h1>{{ t('terminal.welcome') }}, <span class="accent">{{ authStore.username }}</span></h1>
             <p class="text-subtext">{{ t('terminal.welcomeSubtitle') }}</p>
@@ -722,6 +716,12 @@ function logout() {
   color: var(--text);
 }
 
+.btn-home img {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
 .header-brand {
   font-weight: 600;
   font-size: 13px;
@@ -879,11 +879,13 @@ function logout() {
   justify-content: center;
   width: 64px;
   height: 64px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  color: var(--accent);
   margin-bottom: 20px;
+}
+
+.welcome-logo img {
+  width: 64px;
+  height: 64px;
+  display: block;
 }
 
 .welcome-hero h1 {
