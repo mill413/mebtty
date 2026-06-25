@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTerminalStore } from '../stores/terminal'
 import { useAuthStore } from '../stores/auth'
@@ -7,11 +7,9 @@ import { useSettingsStore } from '../stores/settings'
 import TerminalTabs from '../components/terminal/TerminalTabs.vue'
 import TerminalPane from '../components/terminal/TerminalPane.vue'
 import StatusBar from '../components/layout/StatusBar.vue'
-import FileBrowser from '../components/terminal/FileBrowser.vue'
-import FileEditorPane from '../components/terminal/FileEditorPane.vue'
-import SettingsView from './SettingsView.vue'
 import { useI18n } from 'vue-i18n'
 import api from '../services/api'
+import { usePluginRuntime } from '../plugins/registry'
 
 import bashIcon from '../assets/shell-icons/gnubash.svg'
 import zshIcon from '../assets/shell-icons/zsh.svg'
@@ -20,11 +18,16 @@ import nuIcon from '../assets/shell-icons/nushell.svg'
 import terminalIcon from '../assets/shell-icons/terminal.svg'
 
 const { t } = useI18n()
+const SettingsView = defineAsyncComponent(() => import('./SettingsView.vue'))
+const FileBrowser = defineAsyncComponent(() => import('../components/terminal/FileBrowser.vue'))
+const FileEditorPane = defineAsyncComponent(() => import('../components/terminal/FileEditorPane.vue'))
+const PluginPanelHost = defineAsyncComponent(() => import('../components/plugins/PluginPanelHost.vue'))
 const route = useRoute()
 const router = useRouter()
 const terminalStore = useTerminalStore()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
+const pluginRuntime = usePluginRuntime()
 
 const terminalPaneRef = ref(null)
 const terminalDims = ref({ cols: 80, rows: 24 })
@@ -35,6 +38,7 @@ const activeFileItem = ref(null)
 const fileEditorDirty = ref(false)
 const showUserMenu = ref(false)
 const zenMode = ref(false)
+const activePluginPanelId = ref('')
 
 function toggleZenMode() {
   if (!document.fullscreenElement) {
@@ -59,14 +63,37 @@ onUnmounted(() => {
 })
 const showShellDialog = ref(false)
 const selectedShell = ref('')
-const sessionTitle = ref('')
-const sessionCwd = ref('')
 const localUsername = ref('')
 const localPassword = ref('')
 const createError = ref('')
 const creating = ref(false)
 
 const isSettingsTab = computed(() => terminalStore.activeTab?.type === 'settings')
+const pluginSidebarPanels = computed(() => pluginRuntime.panels.value.filter((panel) => {
+  if (panel.pluginId === 'builtin.file-browser' || panel.id === 'builtin.file-browser.panel') return false
+  return !panel.slot || panel.slot === 'terminal.sidebar'
+}))
+const pluginToolbarItems = computed(() => pluginRuntime.toolbarItems.value.filter((item) => {
+  return !item.slot || item.slot === 'terminal.toolbar'
+}))
+const pluginPanelButtons = computed(() => pluginSidebarPanels.value.filter((panel) => {
+  return !pluginToolbarItems.value.some((item) => item.panelId === panel.id || item.panelId === panel.key)
+}))
+const fileProviders = computed(() => pluginRuntime.fileProviders.value.filter((provider) => {
+  return typeof provider?.browse === 'function'
+}))
+const activeIconPack = computed(() => {
+  const configuredIconPack = settingsStore.pluginSettings.activeIconPackId
+  return pluginRuntime.iconPacks.value.find((pack) => pack.id === configuredIconPack) ||
+    pluginRuntime.iconPacks.value[0] ||
+    null
+})
+const activePluginPanel = computed(() => {
+  if (!activePluginPanelId.value) return null
+  return pluginSidebarPanels.value.find((panel) => {
+    return panel.id === activePluginPanelId.value || panel.key === activePluginPanelId.value
+  }) || null
+})
 
 // Supported shells with icons — only these are shown if available on the system
 const SUPPORTED_SHELLS = [
@@ -90,6 +117,12 @@ onMounted(async () => {
 
   if (!settingsStore.loaded) {
     await settingsStore.fetchSettings()
+  }
+
+  try {
+    await pluginRuntime.loadPlugins()
+  } catch (err) {
+    console.error('Failed to load plugins:', err)
   }
 
   await terminalStore.fetchSessions()
@@ -227,6 +260,9 @@ function handleRuntimeStatus(status) {
 }
 
 function toggleFileBrowser() {
+  if (!showFileBrowser.value && !fileBrowserPath.value && terminalStore.activeTab?.cwd) {
+    fileBrowserPath.value = terminalStore.activeTab.cwd
+  }
   showFileBrowser.value = !showFileBrowser.value
 }
 
@@ -251,6 +287,33 @@ function closeFileEditor() {
   fileEditorDirty.value = false
 }
 
+function togglePluginPanel(panel) {
+  const panelId = panel.id || panel.key
+  activePluginPanelId.value = activePluginPanelId.value === panelId ? '' : panelId
+}
+
+function closePluginPanel() {
+  activePluginPanelId.value = ''
+}
+
+function handlePluginToolbarItem(item) {
+  if (typeof item.action === 'function') {
+    item.action({ terminalStore, settingsStore, activeTab: terminalStore.activeTab })
+    return
+  }
+
+  if (item.panelId) {
+    const panel = pluginSidebarPanels.value.find((candidate) => {
+      return candidate.id === item.panelId || candidate.key === item.panelId
+    })
+    if (panel) togglePluginPanel(panel)
+  }
+}
+
+function pluginButtonLabel(item) {
+  return item.icon || item.title?.charAt(0)?.toUpperCase() || item.name?.charAt(0)?.toUpperCase() || '*'
+}
+
 function openSettings() {
   showUserMenu.value = false
   terminalStore.openSettingsTab()
@@ -262,14 +325,10 @@ async function createNewSession() {
   try {
     await terminalStore.createSession(
       selectedShell.value,
-      sessionTitle.value,
-      sessionCwd.value,
       localUsername.value.trim(),
       localPassword.value
     )
     showShellDialog.value = false
-    sessionTitle.value = ''
-    sessionCwd.value = ''
     localPassword.value = ''
   } catch (err) {
     createError.value = err.response?.data?.detail || t('home.localLoginFailed')
@@ -295,10 +354,7 @@ function logout() {
     <div class="terminal-header">
       <div class="header-left">
         <button class="btn-home" @click="goHome" :title="t('terminal.home')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="4 17 10 11 4 5" />
-            <line x1="12" y1="19" x2="20" y2="19" />
-          </svg>
+          <img src="/logo.svg" alt="" aria-hidden="true" />
         </button>
         <span class="header-brand">MebTTY</span>
       </div>
@@ -323,6 +379,26 @@ function logout() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
           </svg>
+        </button>
+        <button
+          v-for="panel in pluginPanelButtons"
+          :key="panel.key"
+          class="toolbar-btn"
+          :class="{ active: activePluginPanelId === (panel.id || panel.key) }"
+          @click="togglePluginPanel(panel)"
+          :title="panel.title || panel.name || panel.pluginName"
+        >
+          <span class="toolbar-plugin-icon">{{ pluginButtonLabel(panel) }}</span>
+        </button>
+        <button
+          v-for="item in pluginToolbarItems"
+          :key="item.key"
+          class="toolbar-btn"
+          :class="{ active: item.panelId && activePluginPanelId === item.panelId }"
+          @click="handlePluginToolbarItem(item)"
+          :title="item.title || item.name || item.pluginName"
+        >
+          <span class="toolbar-plugin-icon">{{ pluginButtonLabel(item) }}</span>
         </button>
         <button
           class="toolbar-btn"
@@ -379,6 +455,8 @@ function logout() {
         v-if="showFileBrowser && settingsStore.sidebarOnLeft"
         :position="settingsStore.sidebarPosition"
         :initialPath="fileBrowserPath"
+        :providers="fileProviders"
+        :iconPack="activeIconPack"
         @close="closeFileBrowser"
         @open-file="handleOpenFile"
         @path-change="handleFileBrowserPathChange"
@@ -389,6 +467,12 @@ function logout() {
         :position="settingsStore.sidebarPosition"
         @close="closeFileEditor"
         @dirty-change="fileEditorDirty = $event"
+      />
+      <PluginPanelHost
+        v-if="activePluginPanel && settingsStore.sidebarOnLeft"
+        :panel="activePluginPanel"
+        :position="settingsStore.sidebarPosition"
+        @close="closePluginPanel"
       />
       <div class="terminal-body">
         <!-- Settings tab content -->
@@ -413,10 +497,7 @@ function logout() {
         <div v-if="!isSettingsTab && !terminalStore.activeTab" class="welcome-page">
           <div class="welcome-hero">
             <div class="welcome-logo">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <polyline points="4 17 10 11 4 5" />
-                <line x1="12" y1="19" x2="20" y2="19" />
-              </svg>
+              <img src="/logo.svg" alt="MebTTY" />
             </div>
             <h1>{{ t('terminal.welcome') }}, <span class="accent">{{ authStore.username }}</span></h1>
             <p class="text-subtext">{{ t('terminal.welcomeSubtitle') }}</p>
@@ -495,10 +576,18 @@ function logout() {
         @close="closeFileEditor"
         @dirty-change="fileEditorDirty = $event"
       />
+      <PluginPanelHost
+        v-if="activePluginPanel && !settingsStore.sidebarOnLeft"
+        :panel="activePluginPanel"
+        :position="settingsStore.sidebarPosition"
+        @close="closePluginPanel"
+      />
       <FileBrowser
         v-if="showFileBrowser && !settingsStore.sidebarOnLeft"
         :position="settingsStore.sidebarPosition"
         :initialPath="fileBrowserPath"
+        :providers="fileProviders"
+        :iconPack="activeIconPack"
         @close="closeFileBrowser"
         @open-file="handleOpenFile"
         @path-change="handleFileBrowserPathChange"
@@ -555,16 +644,6 @@ function logout() {
               :placeholder="t('home.localPasswordPlaceholder')"
               @keyup.enter="createNewSession"
             />
-          </div>
-
-          <div class="form-group">
-            <label>{{ t('home.titleOptional') }}</label>
-            <input v-model="sessionTitle" type="text" :placeholder="t('home.titlePlaceholder')" />
-          </div>
-
-          <div class="form-group">
-            <label>{{ t('home.cwdOptional') }}</label>
-            <input v-model="sessionCwd" type="text" :placeholder="t('home.cwdPlaceholder')" />
           </div>
 
           <p v-if="createError" class="dialog-error">{{ createError }}</p>
@@ -624,6 +703,12 @@ function logout() {
   color: var(--text);
 }
 
+.btn-home img {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
 .header-brand {
   font-weight: 600;
   font-size: 13px;
@@ -667,6 +752,17 @@ function logout() {
 .toolbar-btn.active {
   background: var(--surface);
   color: var(--accent);
+}
+
+.toolbar-plugin-icon {
+  min-width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .user-menu-wrapper {
@@ -770,11 +866,13 @@ function logout() {
   justify-content: center;
   width: 64px;
   height: 64px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  color: var(--accent);
   margin-bottom: 20px;
+}
+
+.welcome-logo img {
+  width: 64px;
+  height: 64px;
+  display: block;
 }
 
 .welcome-hero h1 {

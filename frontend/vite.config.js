@@ -16,5 +16,27 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('/xterm') || id.includes('xterm-addon-')) {
+            return 'xterm'
+          }
+          if (
+            id.includes('/vue') ||
+            id.includes('/pinia') ||
+            id.includes('/vue-router') ||
+            id.includes('/vue-i18n')
+          ) {
+            return 'vue-vendor'
+          }
+          return 'vendor'
+        }
+      }
+    }
   }
 })

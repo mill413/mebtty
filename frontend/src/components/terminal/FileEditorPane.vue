@@ -4,6 +4,7 @@ import api from '../../services/api'
 import { useSettingsStore } from '../../stores/settings'
 import { useI18n } from 'vue-i18n'
 import { formatFileSize } from '../../utils/format'
+import { usePluginRuntime } from '../../plugins/registry'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -14,6 +15,7 @@ const emit = defineEmits(['close', 'dirty-change'])
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
+const pluginRuntime = usePluginRuntime()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -32,7 +34,13 @@ let resizeStartX = 0
 let resizeStartWidth = 0
 
 const isLeft = computed(() => props.position === 'left')
-const isDirty = computed(() => mode.value === 'text' && content.value !== originalContent.value)
+const provider = computed(() => {
+  const providerId = props.item?.providerId || 'builtin.local-files'
+  return pluginRuntime.fileProviders.value.find((candidate) => candidate.id === providerId)
+})
+const isLocalFile = computed(() => !props.item?.providerId || props.item?.providerId === 'builtin.local-files')
+const canWrite = computed(() => typeof provider.value?.write === 'function' || isLocalFile.value)
+const isDirty = computed(() => mode.value === 'text' && canWrite.value && content.value !== originalContent.value)
 const title = computed(() => metadata.value?.name || props.item?.name || '')
 const lineCount = computed(() => Math.max(1, content.value.split('\n').length))
 const lineNumberWidth = computed(() => `${Math.max(3, String(lineCount.value).length) + 1}ch`)
@@ -116,7 +124,9 @@ async function openItem() {
 
 async function openTextFile() {
   try {
-    const { data } = await api.get('/api/files/read', { params: { path: props.item.path } })
+    const data = provider.value?.read
+      ? await provider.value.read({ path: props.item.path, item: props.item, provider: provider.value })
+      : (await api.get('/api/files/read', { params: { path: props.item.path } })).data
     mode.value = 'text'
     metadata.value = data
     originalContent.value = data.content
@@ -135,20 +145,34 @@ async function openTextFile() {
 async function openImageFile() {
   mode.value = 'image'
   const token = localStorage.getItem('access_token')
-  imageUrl.value = `/api/files/download-browse?path=${encodeURIComponent(props.item.path)}&token=${token}`
+  if (provider.value?.downloadUrl) {
+    imageUrl.value = provider.value.downloadUrl({ path: props.item.path, item: props.item, token, provider: provider.value })
+  } else if (isLocalFile.value) {
+    imageUrl.value = `/api/files/download-browse?path=${encodeURIComponent(props.item.path)}&token=${token}`
+  } else {
+    mode.value = 'info'
+  }
 }
 
 async function saveFile() {
-  if (mode.value !== 'text' || !isDirty.value || saving.value) return
+  if (mode.value !== 'text' || !isDirty.value || saving.value || !canWrite.value) return
   clearSaveTimer()
   saving.value = true
   error.value = ''
   try {
-    const { data } = await api.put('/api/files/write', {
-      path: metadata.value.path,
-      content: content.value,
-      mtime: metadata.value.mtime
-    })
+    const data = provider.value?.write
+      ? await provider.value.write({
+        path: metadata.value.path,
+        content: content.value,
+        mtime: metadata.value.mtime,
+        item: props.item,
+        provider: provider.value
+      })
+      : (await api.put('/api/files/write', {
+        path: metadata.value.path,
+        content: content.value,
+        mtime: metadata.value.mtime
+      })).data
     metadata.value = { ...metadata.value, ...data }
     originalContent.value = content.value
     lastSavedAt.value = new Date()
@@ -263,6 +287,7 @@ function stopResize() {
           class="fe-textarea"
           spellcheck="false"
           wrap="off"
+          :readonly="!canWrite"
           @keydown="handleKeydown"
           @scroll="syncLineNumberScroll"
         />

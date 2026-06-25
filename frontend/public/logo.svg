@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">MebTTY logo</title>
+  <desc id="desc">A compact prompt mark combining a greater-than sign, the letter M, and a terminal underline.</desc>
+  <g fill="none" stroke="#7c3aed" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 46l22 18-22 18"/>
+    <path d="M76 90V38l18 28 18-28v52"/>
+    <path d="M74 106h42"/>
+  </g>
+</svg>

@@ -12,8 +12,6 @@ const terminalStore = useTerminalStore()
 
 const showShellDialog = ref(false)
 const selectedShell = ref('/bin/bash')
-const sessionTitle = ref('')
-const sessionCwd = ref('')
 const localUsername = ref('')
 const localPassword = ref('')
 const createError = ref('')
@@ -57,14 +55,10 @@ async function createNewSession() {
   try {
     await terminalStore.createSession(
       selectedShell.value,
-      sessionTitle.value,
-      sessionCwd.value,
       localUsername.value.trim(),
       localPassword.value
     )
     showShellDialog.value = false
-    sessionTitle.value = ''
-    sessionCwd.value = ''
     localPassword.value = ''
   } catch (err) {
     createError.value = err.response?.data?.detail || t('home.localLoginFailed')
@@ -325,16 +319,6 @@ function formatDate(dateStr) {
               :placeholder="t('home.localPasswordPlaceholder')"
               @keyup.enter="createNewSession"
             />
-          </div>
-
-          <div class="form-group">
-            <label>{{ t('home.titleOptional') }}</label>
-            <input v-model="sessionTitle" type="text" :placeholder="t('home.titlePlaceholder')" />
-          </div>
-
-          <div class="form-group">
-            <label>{{ t('home.cwdOptional') }}</label>
-            <input v-model="sessionCwd" type="text" :placeholder="t('home.cwdPlaceholder')" />
           </div>
 
           <p v-if="createError" class="dialog-error">{{ createError }}</p>

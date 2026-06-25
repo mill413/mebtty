@@ -5,11 +5,18 @@ import shutil
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.auth.rate_limit import (
+    auth_rate_limit_key,
+    check_auth_rate_limit,
+    record_auth_failure,
+    record_auth_success,
+)
+from app.auth.service import create_terminal_ws_token
 from app.database import get_db
 from app.local_users import (
     authenticate_local_user,
@@ -50,6 +57,11 @@ class SessionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TerminalWsTicketResponse(BaseModel):
+    ticket: str
+    expires_in: int
+
+
 def _session_to_response(session) -> dict:
     """Convert a session ORM object to a response dict with username."""
     data = {c.key: getattr(session, c.key) for c in session.__table__.columns}
@@ -78,6 +90,7 @@ async def list_sessions(
 @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(
     body: SessionCreate,
+    request: Request,
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -87,9 +100,13 @@ async def create_session(
             detail="Local username and password are required",
         )
 
+    rate_limit_key = auth_rate_limit_key("local-login", body.local_user, request)
+    check_auth_rate_limit(rate_limit_key)
+
     try:
         local_user = resolve_local_user(body.local_user)
     except ValueError as exc:
+        record_auth_failure(rate_limit_key)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
@@ -104,10 +121,12 @@ async def create_session(
         ) from exc
 
     if not authenticated:
+        record_auth_failure(rate_limit_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid local username or password",
         )
+    record_auth_success(rate_limit_key)
 
     cwd = body.cwd or local_user.home
     shell = body.shell or local_user.shell
@@ -250,6 +269,31 @@ async def get_session(
             detail="Access denied",
         )
     return _session_to_response(session)
+
+
+@router.post("/{session_id}/ws-ticket", response_model=TerminalWsTicketResponse)
+async def create_terminal_ws_ticket(
+    session_id: str,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    session = await SessionService.get_session(db, session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+    if session.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+
+    expires_in = 60
+    return TerminalWsTicketResponse(
+        ticket=create_terminal_ws_token(current_user.id, session_id, expires_in),
+        expires_in=expires_in,
+    )
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)

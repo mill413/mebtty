@@ -7,8 +7,10 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
+from app.config import DEFAULT_SECRET_KEY, settings as app_settings
+
 # Import models so they're registered with Base.metadata before init_db
-from app.models import User, Session, CommandLog, AuditEvent, UserSettings  # noqa: F401
+from app.models import User, Session, CommandLog, AuditEvent, UserSettings, Plugin  # noqa: F401
 
 from app.auth.router import router as auth_router
 from app.session.router import router as session_router
@@ -16,6 +18,7 @@ from app.terminal.router import router as terminal_router
 from app.audit.router import router as audit_router
 from app.file.router import router as file_router
 from app.settings.router import router as settings_router
+from app.plugins.router import router as plugins_router
 from app.database import init_db, async_session_factory
 
 logging.basicConfig(level=logging.INFO)
@@ -98,6 +101,18 @@ async def migrate_db():
             await conn.execute(text("ALTER TABLE users ADD COLUMN login_shell VARCHAR(64)"))
             logger.info("Migration: added 'login_shell' column to users")
 
+        if "is_admin" not in existing_columns:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0 NOT NULL"))
+            logger.info("Migration: added 'is_admin' column to users")
+
+        admin_result = await conn.execute(text("SELECT COUNT(*) FROM users WHERE is_admin = 1"))
+        admin_count = admin_result.scalar_one()
+        user_result = await conn.execute(text("SELECT id FROM users ORDER BY created_at ASC LIMIT 1"))
+        first_user_id = user_result.scalar_one_or_none()
+        if admin_count == 0 and first_user_id is not None:
+            await conn.execute(text("UPDATE users SET is_admin = 1 WHERE id = :user_id"), {"user_id": first_user_id})
+            logger.info("Migration: promoted first user to admin")
+
         result = await conn.execute(text("PRAGMA table_info(user_settings)"))
         settings_columns = {row[1] for row in result.fetchall()}
 
@@ -117,6 +132,10 @@ async def migrate_db():
             await conn.execute(text("ALTER TABLE user_settings ADD COLUMN custom_theme TEXT DEFAULT '{}' NOT NULL"))
             logger.info("Migration: added 'custom_theme' column to user_settings")
 
+        if "plugin_settings" not in settings_columns:
+            await conn.execute(text("ALTER TABLE user_settings ADD COLUMN plugin_settings TEXT DEFAULT '{}' NOT NULL"))
+            logger.info("Migration: added 'plugin_settings' column to user_settings")
+
         result = await conn.execute(text("PRAGMA table_info(sessions)"))
         session_columns = {row[1] for row in result.fetchall()}
 
@@ -127,9 +146,18 @@ async def migrate_db():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if app_settings.SECRET_KEY == DEFAULT_SECRET_KEY:
+        raise RuntimeError(
+            "MEBTTY_SECRET_KEY must be changed from the historical insecure default"
+        )
     logger.info("Initializing database...")
     await init_db()
     await migrate_db()
+    from app.plugins.builtin import ensure_builtin_plugins
+
+    async with async_session_factory() as db:
+        await ensure_builtin_plugins(db)
+        await db.commit()
     await cleanup_stale_sessions()
     await cleanup_expired_sessions()
     logger.info("MebTTY started")
@@ -158,15 +186,13 @@ app.include_router(terminal_router)
 app.include_router(audit_router)
 app.include_router(file_router)
 app.include_router(settings_router)
+app.include_router(plugins_router)
 
 
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "0.1.0"}
 
-
-# Serve frontend static files in production mode.
-from app.config import settings as app_settings
 
 STATIC_DIR = Path(app_settings.STATIC_DIR) if app_settings.STATIC_DIR else None
 if STATIC_DIR is None or not STATIC_DIR.is_dir():

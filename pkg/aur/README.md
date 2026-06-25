@@ -10,6 +10,31 @@ After installing, adjust the PAM service in `/etc/mebtty/mebtty.env` if your sys
 MEBTTY_PAM_SERVICE=login
 ```
 
+The file browser normally starts from the active terminal's current working directory. If no active terminal directory is available yet, it starts from the current MebTTY user's most recent local terminal user's home directory, not from the systemd service account's home directory. Set `MEBTTY_BROWSE_ROOT` in `/etc/mebtty/mebtty.env` only when you want a fixed browse root.
+
+Start the service manually after installation:
+
+```bash
+sudo systemctl enable --now mebtty
+sudo systemctl status mebtty
+```
+
+Common paths:
+
+| Path | Purpose |
+| ---- | ------- |
+| `/usr/bin/mebtty` | Installed executable |
+| `/etc/mebtty/mebtty.env` | Environment configuration |
+| `/var/lib/mebtty/mebtty.db` | SQLite database |
+| `/var/lib/mebtty/uploads` | Uploaded files and avatars |
+| `/var/lib/mebtty/plugins` | Installed third-party plugins |
+
+After changing `/etc/mebtty/mebtty.env`, restart the service:
+
+```bash
+sudo systemctl restart mebtty
+```
+
 ## Local test
 
 From the repository root:
@@ -29,3 +54,5 @@ Required secrets for AUR publishing:
 - `AUR_SSH_PRIVATE_KEY`: SSH private key with access to `aur@aur.archlinux.org:mebtty.git`
 
 If this secret is not configured, the workflow still builds and uploads the AUR source archive to the GitHub Release. AUR commits use `haruto <mill413@outlook.com>` as the author identity.
+
+Development prerelease tags ending in `.dev` build release assets but skip AUR publishing.

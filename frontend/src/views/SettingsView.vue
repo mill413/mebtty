@@ -2,11 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { CUSTOM_THEME_FIELDS, CUSTOM_THEME_MODES, useSettingsStore } from '../stores/settings'
+import { CUSTOM_THEME_FIELDS, CUSTOM_THEME_MODES, DEFAULT_CUSTOM_THEME, useSettingsStore } from '../stores/settings'
 import { useThemeStore } from '../stores/theme'
 import { useAuthStore } from '../stores/auth'
 import { setLocale, resetToBrowserLocale, getSupportedLocales, hasUserLocale } from '../i18n'
 import api from '../services/api'
+import { usePluginRuntime } from '../plugins/registry'
+import PluginSettingsSectionHost from '../components/plugins/PluginSettingsSectionHost.vue'
 
 const props = defineProps({
   embedded: { type: Boolean, default: false }
@@ -17,6 +19,7 @@ const router = useRouter()
 const settingsStore = useSettingsStore()
 const themeStore = useThemeStore()
 const authStore = useAuthStore()
+const pluginRuntime = usePluginRuntime()
 
 const locales = getSupportedLocales()
 const localeLabels = { 'en-US': 'English', 'zh-CN': '简体中文', 'zh-TW': '繁體中文', 'ja': '日本語' }
@@ -42,7 +45,18 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
 const passwordSuccess = ref(false)
-const activeSection = ref('appearance')
+const plugins = ref([])
+const pluginsLoading = ref(false)
+const pluginsError = ref('')
+const pluginsMessage = ref('')
+const pluginInstalling = ref(false)
+const pluginSettingsSections = computed(() => pluginRuntime.settingsSections.value)
+const pluginThemes = computed(() => pluginRuntime.themes.value.filter((theme) => theme?.id && theme?.modes?.dark && theme?.modes?.light))
+const pluginIconPacks = computed(() => pluginRuntime.iconPacks.value.filter((pack) => pack?.id && pack?.assetsBase))
+const canManagePlugins = computed(() => authStore.isAdmin)
+const selectedPluginThemeId = computed(() => settingsStore.pluginSettings.activeThemeId || '')
+const selectedIconPackId = computed(() => settingsStore.pluginSettings.activeIconPackId || pluginIconPacks.value[0]?.id || '')
+const activeNavKey = ref('appearance')
 const sectionRefs = ref({})
 const activeThemeAccent = computed(() => {
   if (!settingsStore.customThemeEnabled) return settingsStore.accentColor
@@ -51,19 +65,78 @@ const activeThemeAccent = computed(() => {
 })
 
 const settingSections = [
-  { key: 'appearance', label: 'settings.sectionAppearance' },
-  { key: 'terminal', label: 'settings.sectionTerminal' },
-  { key: 'files', label: 'settings.sectionFiles' },
-  { key: 'status', label: 'settings.sectionStatus' },
-  { key: 'account', label: 'settings.sectionAccount' }
+  {
+    key: 'appearance',
+    label: 'settings.sectionAppearance',
+    children: [
+      { key: 'appearance-language', label: 'settings.language' },
+      { key: 'appearance-color-mode', label: 'settings.colorMode' },
+      { key: 'appearance-plugin-theme', label: 'settings.pluginTheme', visible: () => pluginThemes.value.length > 0 },
+      { key: 'appearance-accent', label: 'settings.accentColor' },
+      { key: 'appearance-custom-theme', label: 'settings.customTheme' },
+      { key: 'appearance-custom-colors', label: 'settings.customThemeColors', visible: () => settingsStore.customThemeEnabled }
+    ]
+  },
+  {
+    key: 'terminal',
+    label: 'settings.sectionTerminal',
+    children: [
+      { key: 'terminal-title-format', label: 'settings.tabTitleFormat' },
+      { key: 'terminal-session-timeout', label: 'settings.sessionTimeout' }
+    ]
+  },
+  {
+    key: 'files',
+    label: 'settings.sectionFiles',
+    children: [
+      { key: 'files-sidebar-position', label: 'settings.sidebarPosition' },
+      { key: 'files-icon-pack', label: 'settings.fileIconPack', visible: () => pluginIconPacks.value.length > 0 },
+      { key: 'files-auto-save', label: 'settings.fileAutoSave' },
+      { key: 'files-line-numbers', label: 'settings.fileLineNumbers' }
+    ]
+  },
+  {
+    key: 'status',
+    label: 'settings.sectionStatus',
+    children: [
+      { key: 'status-bar', label: 'settings.statusBar' },
+      { key: 'status-items', label: 'settings.statusBarItems', visible: () => settingsStore.statusBarVisible }
+    ]
+  },
+  {
+    key: 'plugins',
+    label: 'settings.sectionPlugins',
+    children: [
+      { key: 'plugins-install', label: 'settings.pluginInstall' },
+      { key: 'plugins-settings', label: 'settings.pluginSettings', visible: () => pluginSettingsSections.value.length > 0 },
+      { key: 'plugins-installed', label: 'settings.installedPlugins' }
+    ]
+  },
+  {
+    key: 'account',
+    label: 'settings.sectionAccount',
+    children: [
+      { key: 'account-avatar', label: 'settings.avatar' },
+      { key: 'account-password', label: 'settings.changePassword' }
+    ]
+  }
 ]
+
+function visibleChildren(section) {
+  return (section.children || []).filter((child) => !child.visible || child.visible())
+}
+
+function isSectionActive(section) {
+  if (activeNavKey.value === section.key) return true
+  return (section.children || []).some((child) => child.key === activeNavKey.value)
+}
 
 function setSectionRef(key, el) {
   if (el) sectionRefs.value[key] = el
 }
 
 function scrollToSection(key) {
-  activeSection.value = key
+  activeNavKey.value = key
   sectionRefs.value[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -104,6 +177,7 @@ onMounted(async () => {
   if (!authStore.user) await authStore.fetchUser()
   if (!settingsStore.loaded) await settingsStore.fetchSettings()
   tabFormat.value = settingsStore.tabTitleFormat
+  await refreshPlugins()
 })
 
 function changeTheme(mode) {
@@ -148,6 +222,40 @@ function saveCustomThemeColor(mode, key, color) {
 
 function resetCustomTheme() {
   settingsStore.resetCustomTheme()
+}
+
+function normalizePluginTheme(theme) {
+  return {
+    dark: { ...DEFAULT_CUSTOM_THEME.dark, ...theme.modes.dark },
+    light: { ...DEFAULT_CUSTOM_THEME.light, ...theme.modes.light }
+  }
+}
+
+function selectPluginTheme(themeId) {
+  if (!themeId) {
+    const { activeThemeId, ...rest } = settingsStore.pluginSettings
+    settingsStore.updatePluginSettings(rest)
+    return
+  }
+
+  const theme = pluginThemes.value.find((candidate) => candidate.id === themeId)
+  if (!theme) return
+  const nextTheme = normalizePluginTheme(theme)
+  settingsStore.customThemeEnabled = true
+  settingsStore.customTheme = nextTheme
+  settingsStore.applyThemeColors()
+  settingsStore.updatePluginSettings({ ...settingsStore.pluginSettings, activeThemeId: themeId })
+  settingsStore.updateSettings({
+    custom_theme_enabled: true,
+    custom_theme: JSON.stringify(nextTheme)
+  })
+}
+
+function selectIconPack(iconPackId) {
+  settingsStore.updatePluginSettings({
+    ...settingsStore.pluginSettings,
+    activeIconPackId: iconPackId
+  })
 }
 
 function saveTabFormat() {
@@ -238,6 +346,117 @@ function logout() {
   authStore.logout()
   router.push('/login')
 }
+
+function setPluginNotice(message = '', error = '') {
+  pluginsMessage.value = message
+  pluginsError.value = error
+}
+
+async function loadPlugins() {
+  pluginsLoading.value = true
+  setPluginNotice()
+  try {
+    const { data } = await api.get('/api/plugins')
+    plugins.value = data
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginLoadFailed'))
+  } finally {
+    pluginsLoading.value = false
+  }
+}
+
+async function refreshPluginRuntime() {
+  try {
+    await pluginRuntime.reloadPlugins()
+  } catch (err) {
+    console.error('Failed to refresh plugin runtime:', err)
+  }
+}
+
+async function refreshPlugins() {
+  await loadPlugins()
+  await refreshPluginRuntime()
+}
+
+async function installPlugin(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!canManagePlugins.value) {
+    setPluginNotice('', t('settings.pluginAdminRequired'))
+    return
+  }
+
+  pluginInstalling.value = true
+  setPluginNotice()
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    await api.post('/api/plugins/install', formData)
+    setPluginNotice(t('settings.pluginInstalled'))
+    await refreshPlugins()
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginInstallFailed'))
+  } finally {
+    pluginInstalling.value = false
+  }
+}
+
+async function enablePlugin(plugin) {
+  if (!canManagePlugins.value) return
+  setPluginNotice()
+  try {
+    await api.post(`/api/plugins/${encodeURIComponent(plugin.id)}/enable`)
+    setPluginNotice(t('settings.pluginEnabled'))
+    await refreshPlugins()
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginActionFailed'))
+  }
+}
+
+async function disablePlugin(plugin) {
+  if (!canManagePlugins.value) return
+  setPluginNotice()
+  try {
+    await api.post(`/api/plugins/${encodeURIComponent(plugin.id)}/disable`)
+    setPluginNotice(t('settings.pluginDisabled'))
+    await refreshPlugins()
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginActionFailed'))
+  }
+}
+
+async function deletePlugin(plugin) {
+  if (!canManagePlugins.value) return
+  if (!window.confirm(t('settings.pluginDeleteConfirm', { name: plugin.name }))) return
+
+  setPluginNotice()
+  try {
+    await api.delete(`/api/plugins/${encodeURIComponent(plugin.id)}`)
+    setPluginNotice(t('settings.pluginDeleted'))
+    await refreshPlugins()
+  } catch (err) {
+    setPluginNotice('', err.response?.data?.detail || t('settings.pluginActionFailed'))
+  }
+}
+
+function canDisablePlugin(plugin) {
+  return canManagePlugins.value && (!plugin.builtin || plugin.id === 'builtin.file-browser')
+}
+
+function pluginStatusLabel(status) {
+  return t(`settings.pluginStatus${status.charAt(0).toUpperCase()}${status.slice(1)}`)
+}
+
+function pluginTypeLabel(type) {
+  const key = type.replace(/(^|-)([a-z])/g, (_, _sep, char) => char.toUpperCase())
+  return t(`settings.pluginType${key}`)
+}
+
+function pluginPermissionLabel(permission) {
+  return t(`settings.pluginPermission.${permission}`)
+}
 </script>
 
 <template>
@@ -266,15 +485,30 @@ function logout() {
 
     <main class="settings-layout">
       <nav class="settings-sidebar" :aria-label="t('settings.categories')">
-        <button
+        <div
           v-for="section in settingSections"
           :key="section.key"
-          class="settings-nav-item"
-          :class="{ active: activeSection === section.key }"
-          @click="scrollToSection(section.key)"
+          class="settings-nav-group"
         >
-          {{ t(section.label) }}
-        </button>
+          <button
+            class="settings-nav-item"
+            :class="{ active: isSectionActive(section) }"
+            @click="scrollToSection(section.key)"
+          >
+            {{ t(section.label) }}
+          </button>
+          <div class="settings-subnav">
+            <button
+              v-for="child in visibleChildren(section)"
+              :key="child.key"
+              class="settings-subnav-item"
+              :class="{ active: activeNavKey === child.key }"
+              @click="scrollToSection(child.key)"
+            >
+              {{ t(child.label) }}
+            </button>
+          </div>
+        </div>
       </nav>
 
       <section class="settings-content">
@@ -283,7 +517,7 @@ function logout() {
             <h2>{{ t('settings.sectionAppearance') }}</h2>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('appearance-language', el)">
             <div class="setting-info">
               <h3>{{ t('settings.language') }}</h3>
               <p>{{ t('settings.languageDesc') }}</p>
@@ -296,7 +530,7 @@ function logout() {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('appearance-color-mode', el)">
             <div class="setting-info">
               <h3>{{ t('settings.colorMode') }}</h3>
               <p>{{ t('settings.colorModeDesc') }}</p>
@@ -334,7 +568,26 @@ function logout() {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div
+            v-if="pluginThemes.length"
+            class="setting-row"
+            :ref="(el) => setSectionRef('appearance-plugin-theme', el)"
+          >
+            <div class="setting-info">
+              <h3>{{ t('settings.pluginTheme') }}</h3>
+              <p>{{ t('settings.pluginThemeDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <select class="setting-select" :value="selectedPluginThemeId" @change="selectPluginTheme($event.target.value)">
+                <option value="">{{ t('settings.pluginThemeCustom') }}</option>
+                <option v-for="theme in pluginThemes" :key="theme.key" :value="theme.id">
+                  {{ theme.label || theme.title || theme.id }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row" :ref="(el) => setSectionRef('appearance-accent', el)">
             <div class="setting-info">
               <h3>{{ t('settings.accentColor') }}</h3>
               <p>{{ t('settings.accentColorDesc') }}</p>
@@ -372,7 +625,7 @@ function logout() {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('appearance-custom-theme', el)">
             <div class="setting-info">
               <h3>{{ t('settings.customTheme') }}</h3>
               <p>{{ t('settings.customThemeDesc') }}</p>
@@ -385,7 +638,11 @@ function logout() {
             </div>
           </div>
 
-          <div class="setting-row setting-row-column custom-theme-row" v-if="settingsStore.customThemeEnabled">
+          <div
+            v-if="settingsStore.customThemeEnabled"
+            class="setting-row setting-row-column custom-theme-row"
+            :ref="(el) => setSectionRef('appearance-custom-colors', el)"
+          >
             <div class="setting-info">
               <h3>{{ t('settings.customThemeColors') }}</h3>
               <p>{{ t('settings.customThemeColorsDesc') }}</p>
@@ -421,6 +678,7 @@ function logout() {
               </div>
             </div>
           </div>
+
         </section>
 
         <section class="settings-section" :ref="(el) => setSectionRef('terminal', el)">
@@ -428,7 +686,7 @@ function logout() {
             <h2>{{ t('settings.sectionTerminal') }}</h2>
           </div>
 
-          <div class="setting-row setting-row-column">
+          <div class="setting-row setting-row-column" :ref="(el) => setSectionRef('terminal-title-format', el)">
             <div class="setting-info">
               <h3>{{ t('settings.tabTitleFormat') }}</h3>
               <p>{{ t('settings.tabTitleFormatDesc') }}</p>
@@ -451,7 +709,7 @@ function logout() {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('terminal-session-timeout', el)">
             <div class="setting-info">
               <h3>{{ t('settings.sessionTimeout') }}</h3>
               <p>{{ t('settings.sessionTimeoutDesc') }}</p>
@@ -488,7 +746,7 @@ function logout() {
             <h2>{{ t('settings.sectionFiles') }}</h2>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('files-sidebar-position', el)">
             <div class="setting-info">
               <h3>{{ t('settings.sidebarPosition') }}</h3>
               <p>{{ t('settings.sidebarPositionDesc') }}</p>
@@ -519,7 +777,25 @@ function logout() {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div
+            v-if="pluginIconPacks.length"
+            class="setting-row"
+            :ref="(el) => setSectionRef('files-icon-pack', el)"
+          >
+            <div class="setting-info">
+              <h3>{{ t('settings.fileIconPack') }}</h3>
+              <p>{{ t('settings.fileIconPackDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <select class="setting-select" :value="selectedIconPackId" @change="selectIconPack($event.target.value)">
+                <option v-for="pack in pluginIconPacks" :key="pack.key" :value="pack.id">
+                  {{ pack.label || pack.title || pack.id }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row" :ref="(el) => setSectionRef('files-auto-save', el)">
             <div class="setting-info">
               <h3>{{ t('settings.fileAutoSave') }}</h3>
               <p>{{ t('settings.fileAutoSaveDesc') }}</p>
@@ -532,7 +808,7 @@ function logout() {
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('files-line-numbers', el)">
             <div class="setting-info">
               <h3>{{ t('settings.fileLineNumbers') }}</h3>
               <p>{{ t('settings.fileLineNumbersDesc') }}</p>
@@ -551,7 +827,7 @@ function logout() {
             <h2>{{ t('settings.sectionStatus') }}</h2>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('status-bar', el)">
             <div class="setting-info">
               <h3>{{ t('settings.statusBar') }}</h3>
               <p>{{ t('settings.statusBarDesc') }}</p>
@@ -564,7 +840,11 @@ function logout() {
             </div>
           </div>
 
-          <div class="setting-row setting-row-column" v-if="settingsStore.statusBarVisible">
+          <div
+            v-if="settingsStore.statusBarVisible"
+            class="setting-row setting-row-column"
+            :ref="(el) => setSectionRef('status-items', el)"
+          >
             <div class="setting-info">
               <h3>{{ t('settings.statusBarItems') }}</h3>
               <p>{{ t('settings.statusBarItemsDesc') }}</p>
@@ -607,12 +887,127 @@ function logout() {
           </div>
         </section>
 
+        <section class="settings-section" :ref="(el) => setSectionRef('plugins', el)">
+          <div class="settings-section-head">
+            <h2>{{ t('settings.sectionPlugins') }}</h2>
+          </div>
+
+          <div class="setting-row setting-row-column" :ref="(el) => setSectionRef('plugins-install', el)">
+            <div class="setting-info">
+              <h3>{{ t('settings.pluginInstall') }}</h3>
+              <p>{{ t('settings.pluginInstallDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div class="plugin-toolbar">
+                <label class="btn-upload" :class="{ disabled: pluginInstalling || !canManagePlugins }">
+                  <input type="file" accept=".mtpx" @change="installPlugin" hidden :disabled="pluginInstalling || !canManagePlugins" />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  {{ pluginInstalling ? t('settings.pluginInstalling') : t('settings.pluginChoosePackage') }}
+                </label>
+                <button class="btn-secondary" @click="refreshPlugins" :disabled="pluginsLoading">
+                  {{ pluginsLoading ? t('settings.pluginRefreshing') : t('settings.pluginRefresh') }}
+                </button>
+              </div>
+              <p v-if="!canManagePlugins" class="plugin-empty">{{ t('settings.pluginAdminRequired') }}</p>
+              <p v-if="pluginsError" class="msg-error">{{ pluginsError }}</p>
+              <p v-if="pluginsMessage" class="msg-success">{{ pluginsMessage }}</p>
+            </div>
+          </div>
+
+          <div
+            v-if="pluginSettingsSections.length"
+            class="setting-row setting-row-column"
+            :ref="(el) => setSectionRef('plugins-settings', el)"
+          >
+            <div class="setting-info">
+              <h3>{{ t('settings.pluginSettings') }}</h3>
+              <p>{{ t('settings.pluginSettingsDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div class="plugin-settings-list">
+                <PluginSettingsSectionHost
+                  v-for="section in pluginSettingsSections"
+                  :key="section.key"
+                  :section="section"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row setting-row-column" :ref="(el) => setSectionRef('plugins-installed', el)">
+            <div class="setting-info">
+              <h3>{{ t('settings.installedPlugins') }}</h3>
+              <p>{{ t('settings.installedPluginsDesc') }}</p>
+            </div>
+            <div class="setting-control-full">
+              <div v-if="pluginsLoading" class="plugin-empty">{{ t('settings.pluginLoading') }}</div>
+              <div v-else-if="plugins.length === 0" class="plugin-empty">{{ t('settings.noPlugins') }}</div>
+              <div v-else class="plugin-list">
+                <div v-for="plugin in plugins" :key="plugin.id" class="plugin-item">
+                  <div class="plugin-main">
+                    <div class="plugin-title-row">
+                      <h4>{{ plugin.name }}</h4>
+                      <span class="plugin-badge" :class="{ builtin: plugin.builtin }">
+                        {{ plugin.builtin ? t('settings.pluginBuiltin') : t('settings.pluginThirdParty') }}
+                      </span>
+                      <span class="plugin-status" :class="plugin.status">
+                        {{ pluginStatusLabel(plugin.status) }}
+                      </span>
+                    </div>
+                    <div class="plugin-meta">
+                      <code>{{ plugin.id }}</code>
+                      <span>{{ pluginTypeLabel(plugin.type) }}</span>
+                      <span>v{{ plugin.version }}</span>
+                    </div>
+                    <p v-if="plugin.manifest.description" class="plugin-description">
+                      {{ plugin.manifest.description }}
+                    </p>
+                    <div class="plugin-permissions" v-if="plugin.permissions.length">
+                      <span v-for="permission in plugin.permissions" :key="permission" class="plugin-permission">
+                        {{ pluginPermissionLabel(permission) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="plugin-actions">
+                    <button
+                      v-if="canManagePlugins && plugin.status !== 'enabled'"
+                      class="btn-secondary"
+                      @click="enablePlugin(plugin)"
+                    >
+                      {{ t('settings.pluginEnable') }}
+                    </button>
+                    <button
+                      v-else-if="canManagePlugins"
+                      class="btn-secondary"
+                      @click="disablePlugin(plugin)"
+                      :disabled="!canDisablePlugin(plugin)"
+                    >
+                      {{ t('settings.pluginDisable') }}
+                    </button>
+                    <button
+                      v-if="canManagePlugins && !plugin.builtin"
+                      class="btn-danger"
+                      @click="deletePlugin(plugin)"
+                    >
+                      {{ t('settings.pluginDelete') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="settings-section" :ref="(el) => setSectionRef('account', el)">
           <div class="settings-section-head">
             <h2>{{ t('settings.sectionAccount') }}</h2>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row" :ref="(el) => setSectionRef('account-avatar', el)">
             <div class="setting-info">
               <h3>{{ t('settings.avatar') }}</h3>
               <p>{{ t('settings.avatarDesc') }}</p>
@@ -636,7 +1031,7 @@ function logout() {
             </div>
           </div>
 
-          <div class="setting-row setting-row-column">
+          <div class="setting-row setting-row-column" :ref="(el) => setSectionRef('account-password', el)">
             <div class="setting-info">
               <h3>{{ t('settings.changePassword') }}</h3>
               <p>{{ t('settings.changePasswordDesc') }}</p>
@@ -759,6 +1154,12 @@ function logout() {
   top: 0;
 }
 
+.settings-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .settings-nav-item {
   width: 100%;
   min-height: 34px;
@@ -769,6 +1170,9 @@ function logout() {
   color: var(--subtext);
   font-size: 13px;
   text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
   transition: all var(--transition);
 }
@@ -782,6 +1186,42 @@ function logout() {
   background: var(--surface);
   border-color: var(--border);
   color: var(--accent);
+}
+
+.settings-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0 0 6px 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.settings-subnav-item {
+  width: 100%;
+  min-height: 28px;
+  padding: 0 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--subtext);
+  font-size: 12px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.settings-subnav-item:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.settings-subnav-item.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .settings-content {
@@ -816,6 +1256,7 @@ function logout() {
   padding: 20px 0;
   border-bottom: 1px solid var(--border);
   gap: 24px;
+  scroll-margin-top: 16px;
 }
 
 @media (max-width: 760px) {
@@ -833,10 +1274,18 @@ function logout() {
     padding-bottom: 2px;
   }
 
+  .settings-nav-group {
+    flex: 0 0 auto;
+  }
+
   .settings-nav-item {
     width: auto;
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+
+  .settings-subnav {
+    display: none;
   }
 }
 
@@ -1179,6 +1628,149 @@ function logout() {
   border-color: var(--accent);
 }
 
+.btn-upload.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Plugins */
+.plugin-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plugin-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.plugin-item:last-child {
+  border-bottom: none;
+}
+
+.plugin-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plugin-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plugin-title-row h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.plugin-badge,
+.plugin-status,
+.plugin-permission {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--subtext);
+  background: var(--bg);
+}
+
+.plugin-badge.builtin {
+  color: var(--accent);
+}
+
+.plugin-status.enabled {
+  color: var(--success, #10b981);
+}
+
+.plugin-status.disabled,
+.plugin-status.installed {
+  color: var(--subtext);
+}
+
+.plugin-status.error {
+  color: var(--error, #ef4444);
+}
+
+.plugin-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--subtext);
+  font-size: 12px;
+}
+
+.plugin-meta code {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.plugin-description {
+  margin: 0;
+  color: var(--subtext);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.plugin-permissions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.plugin-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.plugin-empty {
+  color: var(--subtext);
+  font-size: 13px;
+}
+
+.plugin-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .plugin-item {
+    flex-direction: column;
+  }
+
+  .plugin-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 /* Password form */
 .password-form {
   display: flex;
@@ -1228,6 +1820,38 @@ function logout() {
 .btn-secondary:hover {
   background: var(--surface-hover);
   border-color: var(--accent);
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius);
+  color: var(--error, #ef4444);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: var(--error, #ef4444);
+}
+
+.btn-secondary:disabled,
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary:disabled:hover,
+.btn-danger:disabled:hover {
+  background: var(--surface);
+  border-color: var(--border);
 }
 
 .msg-error {
