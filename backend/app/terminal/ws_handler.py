@@ -5,6 +5,9 @@ import struct
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from app.auth.service import decode_token
+from app.database import async_session_factory
+from app.models import Session, User
 from app.terminal.manager import RuntimeManager
 
 logger = logging.getLogger(__name__)
@@ -39,7 +42,37 @@ def decode_packet(data: bytes) -> tuple[int, bytes]:
     return opcode, payload
 
 
-async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
+async def _authorize_terminal_ws(session_id: str, ticket: str | None) -> bool:
+    if not ticket:
+        return False
+
+    try:
+        payload = decode_token(ticket)
+    except ValueError:
+        return False
+
+    if payload.get("type") != "terminal_ws" or payload.get("sid") != session_id:
+        return False
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return False
+
+    async with async_session_factory() as db:
+        session = await db.get(Session, session_id)
+        if session is None or session.user_id != user_id:
+            return False
+
+        user = await db.get(User, user_id)
+        return bool(user and user.is_active)
+
+
+async def websocket_endpoint(websocket: WebSocket, session_id: str, ticket: str | None) -> None:
+    if not await _authorize_terminal_ws(session_id, ticket):
+        await websocket.close(code=1008, reason="Unauthorized")
+        logger.warning("WebSocket rejected: unauthorized session '%s'", session_id)
+        return
+
     await websocket.accept()
 
     manager = RuntimeManager()
@@ -103,7 +136,6 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
 
         # Update session status to DETACHED
         try:
-            from app.database import async_session_factory
             from app.session.service import SessionService
 
             async with async_session_factory() as db:

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.auth.service import create_terminal_ws_token
 from app.database import get_db
 from app.local_users import (
     authenticate_local_user,
@@ -48,6 +49,11 @@ class SessionResponse(BaseModel):
     updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class TerminalWsTicketResponse(BaseModel):
+    ticket: str
+    expires_in: int
 
 
 def _session_to_response(session) -> dict:
@@ -250,6 +256,31 @@ async def get_session(
             detail="Access denied",
         )
     return _session_to_response(session)
+
+
+@router.post("/{session_id}/ws-ticket", response_model=TerminalWsTicketResponse)
+async def create_terminal_ws_ticket(
+    session_id: str,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    session = await SessionService.get_session(db, session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+    if session.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+
+    expires_in = 60
+    return TerminalWsTicketResponse(
+        ticket=create_terminal_ws_token(current_user.id, session_id, expires_in),
+        expires_in=expires_in,
+    )
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)

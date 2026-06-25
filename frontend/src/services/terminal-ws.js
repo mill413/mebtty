@@ -24,9 +24,27 @@ export class TerminalWebSocket {
     this.intentionalClose = false
     this.serverClosed = false
     this.hadError = false
+    this.openSocket()
+  }
+
+  async openSocket() {
+    let ticket
+    try {
+      const { data } = await api.post(`/api/sessions/${this.sessionId}/ws-ticket`)
+      ticket = data.ticket
+    } catch (error) {
+      if (this.intentionalClose) return
+      this.connected = false
+      this.hadError = true
+      this.terminal.write('\r\n\x1b[31m[Unable to authorize terminal connection]\x1b[0m\r\n')
+      if (error?.response?.status !== 401 && error?.response?.status !== 403 && error?.response?.status !== 404) {
+        this.scheduleReconnect()
+      }
+      return
+    }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/api/terminal/ws/${this.sessionId}`
+    const wsUrl = `${protocol}//${window.location.host}/api/terminal/ws/${this.sessionId}?ticket=${encodeURIComponent(ticket)}`
     const ws = new WebSocket(wsUrl)
     this.ws = ws
     ws.binaryType = 'arraybuffer'
