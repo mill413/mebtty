@@ -14,7 +14,8 @@ from app.config import settings
 from app.auth.dependencies import get_current_user
 from app.auth.service import decode_token
 from app.database import get_db
-from app.models import User
+from app.local_users import resolve_local_user
+from app.models import Session, User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -105,21 +106,40 @@ def _validate_path(user_id: str, session_id: str, relative_path: str) -> pathlib
     return target
 
 
-def _get_browse_root(user_id: str) -> pathlib.Path:
+async def _get_browse_root(user_id: str, db: AsyncSession) -> pathlib.Path:
     """Get the root directory for file browsing."""
-    # Default to user's home directory, or use configured root
-    browse_root = os.environ.get("MEBTTY_BROWSE_ROOT", os.path.expanduser("~"))
-    return pathlib.Path(browse_root).resolve()
+    configured_root = os.environ.get("MEBTTY_BROWSE_ROOT")
+    if configured_root:
+        return pathlib.Path(configured_root).resolve()
+
+    result = await db.execute(
+        select(Session.local_user)
+        .where(
+            Session.user_id == user_id,
+            Session.local_user.is_not(None),
+            Session.local_user != "",
+        )
+        .order_by(Session.updated_at.desc(), Session.created_at.desc())
+        .limit(1)
+    )
+    local_username = result.scalar_one_or_none()
+    if local_username:
+        try:
+            return pathlib.Path(resolve_local_user(local_username).home).resolve()
+        except ValueError:
+            pass
+
+    return pathlib.Path(os.path.expanduser("~")).resolve()
 
 
-def _validate_browse_path(user_id: str, path: str) -> pathlib.Path:
+async def _validate_browse_path(user_id: str, path: str, db: AsyncSession) -> pathlib.Path:
     """Resolve browse path. If path is absolute, use it directly; otherwise relative to browse root."""
     if path and path.startswith('/'):
         # Absolute path — resolve directly, rely on OS permissions
         target = pathlib.Path(path).resolve()
     else:
         # Empty or relative path — start from browse root
-        root = _get_browse_root(user_id)
+        root = await _get_browse_root(user_id, db)
         target = (root / path).resolve() if path else root
 
     if not target.exists():
@@ -248,9 +268,10 @@ async def upload_to_browse_dir(
     target_dir: str = Form(""),
     file: UploadFile = File(...),
     current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Upload a file to a specific directory within the browse root."""
-    dest = _validate_browse_path(current_user.id, target_dir)
+    dest = await _validate_browse_path(current_user.id, target_dir, db)
     if not dest.is_dir():
         raise HTTPException(status_code=400, detail="Target directory does not exist")
 
@@ -280,9 +301,10 @@ async def browse_directory(
     path: str = Query(""),
     show_hidden: bool = Query(False),
     current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Browse directory contents with full metadata."""
-    target = _validate_browse_path(current_user.id, path)
+    target = await _validate_browse_path(current_user.id, path, db)
 
     if not target.exists():
         raise HTTPException(status_code=404, detail="Path not found")
@@ -344,9 +366,10 @@ async def browse_directory(
 async def read_text_file(
     path: str = Query(...),
     current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Read a UTF-8 text file from the browse filesystem."""
-    target = _validate_browse_path(current_user.id, path)
+    target = await _validate_browse_path(current_user.id, path, db)
 
     if not target.is_file():
         raise HTTPException(status_code=404, detail="File not found")
@@ -383,9 +406,10 @@ async def read_text_file(
 async def write_text_file(
     body: FileWriteRequest,
     current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Write a UTF-8 text file from the browse filesystem."""
-    target = _validate_browse_path(current_user.id, body.path)
+    target = await _validate_browse_path(current_user.id, body.path, db)
 
     if not target.is_file():
         raise HTTPException(status_code=404, detail="File not found")
@@ -427,9 +451,10 @@ async def create_directory(
     path: str = Form(""),
     name: str = Form(...),
     current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Create a new directory."""
-    target = _validate_browse_path(current_user.id, path)
+    target = await _validate_browse_path(current_user.id, path, db)
     new_dir = (target / name).resolve()
 
     if new_dir.exists():
@@ -448,9 +473,10 @@ async def create_directory(
 async def delete_file(
     path: str = Form(...),
     current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Delete a file or directory."""
-    target = _validate_browse_path(current_user.id, path)
+    target = await _validate_browse_path(current_user.id, path, db)
 
     if not target.exists():
         raise HTTPException(status_code=404, detail="Path not found")
@@ -472,9 +498,10 @@ async def rename_file(
     path: str = Form(...),
     new_name: str = Form(...),
     current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Rename a file or directory."""
-    target = _validate_browse_path(current_user.id, path)
+    target = await _validate_browse_path(current_user.id, path, db)
 
     if not target.exists():
         raise HTTPException(status_code=404, detail="Path not found")
@@ -501,9 +528,10 @@ async def rename_file(
 async def download_from_browse(
     path: str = Query(...),
     current_user: User = Depends(get_user_from_token_or_header),
+    db: AsyncSession = Depends(get_db),
 ):
     """Download a file from the browse directory."""
-    target = _validate_browse_path(current_user.id, path)
+    target = await _validate_browse_path(current_user.id, path, db)
 
     if not target.is_file():
         raise HTTPException(status_code=404, detail="File not found")

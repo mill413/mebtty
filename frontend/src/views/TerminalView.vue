@@ -262,6 +262,9 @@ function handleRuntimeStatus(status) {
 }
 
 function toggleFileBrowser() {
+  if (!showFileBrowser.value && !fileBrowserPath.value && terminalStore.activeTab?.cwd) {
+    fileBrowserPath.value = terminalStore.activeTab.cwd
+  }
   showFileBrowser.value = !showFileBrowser.value
 }
 
