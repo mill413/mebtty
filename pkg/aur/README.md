@@ -2,7 +2,12 @@
 
 This directory contains the Arch User Repository package metadata for `mebtty`.
 
-`mebtty` installs the prebuilt Linux amd64 executable from GitHub Releases and a systemd service. The service runs as root so MebTTY can authenticate local users with PAM and drop terminal sessions to the selected user's uid/gid. It does not enable or start the service automatically.
+`mebtty` installs the prebuilt Linux amd64 executable from GitHub Releases and a systemd service. The service runs as root so MebTTY can authenticate local users with PAM and drop terminal sessions to the selected user's uid/gid. Fresh installs do not enable or start the service automatically. Upgrades restart `mebtty.service` only when it is already running, so the active daemon switches to the newly installed binary.
+
+Remote release sources that can change between versions, such as `mebtty.service`
+and `LICENSE`, must use versioned local source names in `PKGBUILD`. This prevents
+`makepkg`/AUR helpers from reusing a cached file from an older release and then
+failing checksum validation during upgrades.
 
 After installing, adjust the PAM service in `/etc/mebtty/mebtty.env` if your system needs a service other than `login`:
 
