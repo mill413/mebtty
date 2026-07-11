@@ -229,6 +229,10 @@ async function initTerminal() {
     onConnect: () => {
       emit('connection-change', 'connected')
       wsConnection.sendResize(terminal.cols, terminal.rows)
+      // Repaint the preserved xterm buffer immediately after reconnecting.
+      // The resize packet also asks the backend to notify full-screen TUI
+      // applications so they redraw without waiting for keyboard input.
+      terminal.refresh(0, terminal.rows - 1)
     },
     onDisconnect: () => {
       emit('connection-change', 'disconnected')

@@ -205,10 +205,6 @@ export class TerminalWebSocket {
     const reconnectDelay = delay ?? Math.min(1000 * 2 ** this.reconnectAttempts, 10000)
     this.reconnectAttempts += 1
 
-    if (this.reconnectAttempts === 1) {
-      this.terminal.write('\r\n\x1b[90m[Connection lost, reconnecting...]\x1b[0m\r\n')
-    }
-
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null
       if (this.intentionalClose) return
