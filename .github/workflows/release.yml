@@ -46,10 +46,12 @@ jobs:
         id: version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "binary=mebtty-${VERSION}-linux-amd64" >> "$GITHUB_OUTPUT"
-          echo "deb=mebtty_${VERSION}_amd64.deb" >> "$GITHUB_OUTPUT"
-          echo "aur_src=mebtty-${VERSION}-1.src.tar.gz" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$VERSION"
+            echo "binary=mebtty-${VERSION}-linux-amd64"
+            echo "deb=mebtty_${VERSION}_amd64.deb"
+            echo "aur_src=mebtty-${VERSION}-1.src.tar.gz"
+          } >> "$GITHUB_OUTPUT"
           echo "Building version: $VERSION"
 
       - name: Setup Python 3.12
@@ -178,21 +180,10 @@ jobs:
           mv "$AUR_DIR/${{ steps.version.outputs.aur_src }}" "${{ steps.version.outputs.aur_src }}"
           ls -lh "${{ steps.version.outputs.aur_src }}"
 
-      - name: Generate checksums
-        run: |
-          sha256sum \
-            "${{ steps.version.outputs.binary }}" \
-            "${{ steps.version.outputs.deb }}" \
-            "${{ steps.version.outputs.aur_src }}" \
-            > checksums.txt
-          cat checksums.txt
-
       - name: Generate release notes
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-
           gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
             -f tag_name="${GITHUB_REF_NAME}" \
             -f configuration_file_path=".github/release.yml" \
@@ -252,13 +243,6 @@ jobs:
           - \`${{ steps.version.outputs.binary }}\`: standalone Linux amd64 executable
           - \`${{ steps.version.outputs.deb }}\`: Debian/Ubuntu amd64 package
           - \`${{ steps.version.outputs.aur_src }}\`: AUR source package for \`mebtty\`
-          - \`checksums.txt\`: SHA256 checksums for release assets
-
-          ## Verify Downloads
-
-          \`\`\`bash
-          sha256sum -c checksums.txt
-          \`\`\`
           EOF
 
       - name: Upload workflow artifacts
@@ -269,7 +253,6 @@ jobs:
             ${{ steps.version.outputs.binary }}
             ${{ steps.version.outputs.deb }}
             ${{ steps.version.outputs.aur_src }}
-            checksums.txt
             RELEASE_NOTES.md
           retention-days: 30
 
@@ -281,7 +264,6 @@ jobs:
             ${{ steps.version.outputs.binary }}
             ${{ steps.version.outputs.deb }}
             ${{ steps.version.outputs.aur_src }}
-            checksums.txt
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, '.dev') }}
 

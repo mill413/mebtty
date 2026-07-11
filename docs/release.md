@@ -53,6 +53,24 @@ Allowed tag formats:
 
 Stable tags create normal GitHub Releases. `.dev` tags create prereleases and skip AUR publishing.
 
+## Local Workflow Validation
+
+Before pushing workflow changes, run:
+
+```bash
+./scripts/check-github-actions.sh
+```
+
+The script runs `actionlint` locally when installed, or uses its official Docker image as a fallback. It checks workflow syntax, expressions, action inputs, embedded shell scripts, and common security mistakes.
+
+For an additional no-side-effect execution-plan check with `act`, run:
+
+```bash
+./scripts/check-github-actions.sh --dry-run
+```
+
+The dry run validates how local jobs and steps are resolved, but does not execute release commands. It requires `act`. The repository's `scripts/git-hooks/pre-push` hook runs the fast static check automatically when that hook is installed.
+
 ## Release Workflow Outputs
 
 When a tag is pushed, `.github/workflows/release.yml` builds:
@@ -62,7 +80,6 @@ When a tag is pushed, `.github/workflows/release.yml` builds:
 | `mebtty-X.Y.Z-linux-amd64` | Standalone Linux amd64 executable |
 | `mebtty_X.Y.Z_amd64.deb` | Debian/Ubuntu amd64 package |
 | `mebtty-X.Y.Z-1.src.tar.gz` | AUR source package |
-| `checksums.txt` | SHA256 checksums for release assets |
 
 Release notes are generated from GitHub's release-notes API using `.github/release.yml`, then extended with installation instructions and asset descriptions.
 

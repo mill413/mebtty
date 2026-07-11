@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Git pre-push hook: validate tag format before pushing.
+# Git pre-push hook: validate workflows and tag format before pushing.
 # Allowed formats: vx.y.z or vx.y.z.dev (e.g., v1.2.3, v1.0.0.dev)
 
-while read -r local_ref local_sha remote_ref remote_sha; do
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+"$ROOT_DIR/scripts/check-github-actions.sh" </dev/null
+
+while read -r local_ref _; do
     # Only check tag pushes (refs/tags/...)
     if [[ "$local_ref" == refs/tags/* ]]; then
         tag_name="${local_ref#refs/tags/}"
