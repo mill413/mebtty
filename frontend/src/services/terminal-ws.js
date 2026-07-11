@@ -1,7 +1,7 @@
 import api from './api'
 
 export class TerminalWebSocket {
-  constructor(sessionId, terminal, { onConnect, onDisconnect, onCwdChange, onStatusChange } = {}) {
+  constructor(sessionId, terminal, { onConnect, onDisconnect, onCwdChange, onStatusChange, transformInput } = {}) {
     this.sessionId = sessionId
     this.terminal = terminal
     this.ws = null
@@ -18,6 +18,7 @@ export class TerminalWebSocket {
     this.onDisconnect = onDisconnect
     this.onCwdChange = onCwdChange
     this.onStatusChange = onStatusChange
+    this.transformInput = transformInput
   }
 
   connect() {
@@ -119,7 +120,10 @@ export class TerminalWebSocket {
   setupTerminalInput() {
     if (this.inputDisposable) return
     this.inputDisposable = this.terminal.onData((data) => {
-      this.sendPacket(0x01, new TextEncoder().encode(data))
+      const transformed = this.transformInput?.(data) ?? data
+      if (transformed) {
+        this.sendPacket(0x01, new TextEncoder().encode(transformed))
+      }
     })
   }
 

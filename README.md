@@ -38,6 +38,7 @@ Deploy with a single script or Docker — and access your server from anywhere.
 - **Session Persistence** — Disconnect and reconnect to running sessions without losing state; sessions survive server restarts
 - **Custom Binary WebSocket Protocol** — Efficient, low-latency terminal I/O with heartbeat keep-alive
 - **xterm.js Powered** — 256-color support, 5000-line scrollback, search, clickable URLs, Unicode 11
+- **Touch Keyboard Bar** — Extra Esc, Tab, modifier, navigation, and paging keys for iPad and mobile terminals
 
 ### Multi-Tab Interface
 
