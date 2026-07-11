@@ -1,4 +1,6 @@
 <script setup>
+import '@vscode/codicons/dist/codicon.css'
+
 const props = defineProps({
   modifiers: {
     type: Object,
@@ -35,18 +37,29 @@ function press(item) {
 
 <template>
   <div class="mobile-key-bar" role="toolbar" aria-label="Terminal extra keys">
+    <div class="mobile-key-scroll">
+      <button
+        v-for="item in keys"
+        :key="item.key || item.modifier"
+        type="button"
+        tabindex="-1"
+        class="mobile-key"
+        :class="{ active: item.modifier && props.modifiers[item.modifier] }"
+        :aria-label="item.ariaLabel || item.label"
+        :aria-pressed="item.modifier ? props.modifiers[item.modifier] : undefined"
+        @pointerdown.prevent="press(item)"
+      >
+        {{ item.label }}
+      </button>
+    </div>
     <button
-      v-for="item in keys"
-      :key="item.key || item.modifier"
       type="button"
-      class="mobile-key"
-      :class="{ active: item.modifier && props.modifiers[item.modifier] }"
-      :aria-label="item.ariaLabel || item.label"
-      :aria-pressed="item.modifier ? props.modifiers[item.modifier] : undefined"
-      @pointerdown.prevent="press(item)"
-      @keydown.enter.space.prevent="press(item)"
+      tabindex="-1"
+      class="mobile-key mobile-keyboard-toggle"
+      aria-label="Show keyboard"
+      @pointerdown.prevent="$emit('key', 'keyboard')"
     >
-      {{ item.label }}
+      <i class="codicon codicon-keyboard" aria-hidden="true"></i>
     </button>
   </div>
 </template>
@@ -57,20 +70,32 @@ function press(item) {
   align-items: center;
   gap: 5px;
   min-height: 42px;
-  padding: 5px 7px calc(5px + env(safe-area-inset-bottom));
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+  padding: 5px 7px;
+  overflow: hidden;
   background: var(--bg-deep);
   border-top: 1px solid var(--border);
+}
+
+.mobile-key-scroll {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
   touch-action: pan-x;
 }
 
-.mobile-key-bar::-webkit-scrollbar {
+.mobile-key-scroll::-webkit-scrollbar {
   display: none;
 }
 
 .mobile-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
   min-width: 42px;
   height: 32px;
@@ -93,6 +118,14 @@ function press(item) {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
+}
+
+.mobile-keyboard-toggle {
+  margin-left: 2px;
+}
+
+.mobile-keyboard-toggle .codicon {
+  font-size: 18px;
 }
 
 @media (hover: none), (pointer: coarse) {

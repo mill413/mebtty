@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useThemeStore, mediaQuery } from './stores/theme'
 import { useSettingsStore } from './stores/settings'
+import { bindVisualViewport } from './utils/visual-viewport'
 
 const themeStore = useThemeStore()
 themeStore.apply()
@@ -14,8 +15,10 @@ watch(
 )
 
 let handler = null
+let unbindVisualViewport = null
 
 onMounted(async () => {
+  unbindVisualViewport = bindVisualViewport()
   handler = () => themeStore.onSystemThemeChange()
   mediaQuery.addEventListener('change', handler)
   await settingsStore.fetchSettings()
@@ -24,6 +27,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  unbindVisualViewport?.()
   if (handler) {
     mediaQuery.removeEventListener('change', handler)
   }
