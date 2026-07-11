@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test",
     "preview": "vite preview",
     "prepare": "test -d ../.git && ln -sf ../../scripts/git-hooks/pre-push ../.git/hooks/pre-push 2>/dev/null || true"
   },
