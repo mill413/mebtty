@@ -39,7 +39,6 @@ function toggleModifier(modifier) {
     ...modifiers.value,
     [modifier]: !modifiers.value[modifier]
   }
-  terminal?.focus()
 }
 
 function transformTerminalInput(data) {
@@ -52,10 +51,14 @@ function transformTerminalInput(data) {
 }
 
 function sendExtraKey(key) {
+  if (key === 'keyboard') {
+    terminal?.focus()
+    return
+  }
+
   const sequence = terminalKeySequence(key, modifiers.value)
   clearModifiers()
   if (sequence) wsConnection?.sendData(sequence)
-  terminal?.focus()
 }
 
 function legacyCopy(text) {
