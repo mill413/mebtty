@@ -10,6 +10,7 @@
     "prepare": "test -d ../.git && ln -sf ../../scripts/git-hooks/pre-push ../.git/hooks/pre-push 2>/dev/null || true"
   },
   "dependencies": {
+    "@vscode/codicons": "^0.0.45",
     "axios": "^1.7.0",
     "pinia": "^2.1.0",
     "split.js": "^1.6.5",
