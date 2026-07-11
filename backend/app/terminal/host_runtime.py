@@ -130,6 +130,12 @@ class HostRuntime(Runtime):
         self._master_fd = master_fd
         self._alive = True
 
+        # _read_loop drains the PTY until EAGAIN from an asyncio add_reader
+        # callback. The master fd must therefore be non-blocking; otherwise
+        # the second os.read() can block the entire event loop until the
+        # terminal produces more output (often after the user presses a key).
+        os.set_blocking(master_fd, False)
+
         # Set initial window size
         self._set_winsize(cols, rows)
 
@@ -208,6 +214,7 @@ class HostRuntime(Runtime):
         if self._master_fd is None:
             raise RuntimeError("Runtime is not running")
         self._set_winsize(cols, rows)
+        self._notify_foreground_process_group(signal.SIGWINCH)
 
     async def read(self) -> AsyncIterator[bytes]:
         while self._alive or not self._read_queue.empty():
@@ -367,6 +374,15 @@ class HostRuntime(Runtime):
             return
         winsize = struct.pack("HHHH", rows, cols, 0, 0)
         fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)
+
+    def _notify_foreground_process_group(self, sig: signal.Signals) -> None:
+        foreground_pgid = self._foreground_pgid()
+        if foreground_pgid is None:
+            return
+        try:
+            os.killpg(foreground_pgid, sig)
+        except ProcessLookupError:
+            pass
 
     async def _read_loop(self) -> None:
         """Event-driven read loop using asyncio add_reader."""

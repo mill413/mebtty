@@ -6,8 +6,10 @@ import { ImageAddon } from 'xterm-addon-image'
 import { SearchAddon } from 'xterm-addon-search'
 import { WebLinksAddon } from 'xterm-addon-web-links'
 import 'xterm/css/xterm.css'
+import MobileKeyBar from './MobileKeyBar.vue'
 import { TerminalWebSocket } from '../../services/terminal-ws.js'
 import { useThemeStore } from '../../stores/theme'
+import { applyTerminalModifiers, terminalKeySequence } from '../../utils/terminal-keys.js'
 
 const props = defineProps({
   sessionId: {
@@ -20,12 +22,41 @@ const emit = defineEmits(['resize', 'connection-change', 'cwd-change', 'status-c
 
 const themeStore = useThemeStore()
 const terminalEl = ref(null)
+const modifiers = ref({ ctrl: false, alt: false, shift: false })
 let terminal = null
 let fitAddon = null
 let searchAddon = null
 let wsConnection = null
 let resizeObserver = null
 let copyOnSelectHandler = null
+
+function clearModifiers() {
+  modifiers.value = { ctrl: false, alt: false, shift: false }
+}
+
+function toggleModifier(modifier) {
+  modifiers.value = {
+    ...modifiers.value,
+    [modifier]: !modifiers.value[modifier]
+  }
+  terminal?.focus()
+}
+
+function transformTerminalInput(data) {
+  const activeModifiers = modifiers.value
+  if (!activeModifiers.ctrl && !activeModifiers.alt && !activeModifiers.shift) return data
+
+  const transformed = applyTerminalModifiers(data, activeModifiers)
+  clearModifiers()
+  return transformed
+}
+
+function sendExtraKey(key) {
+  const sequence = terminalKeySequence(key, modifiers.value)
+  clearModifiers()
+  if (sequence) wsConnection?.sendData(sequence)
+  terminal?.focus()
+}
 
 function legacyCopy(text) {
   const textarea = document.createElement('textarea')
@@ -229,6 +260,10 @@ async function initTerminal() {
     onConnect: () => {
       emit('connection-change', 'connected')
       wsConnection.sendResize(terminal.cols, terminal.rows)
+      // Repaint the preserved xterm buffer immediately after reconnecting.
+      // The resize packet also asks the backend to notify full-screen TUI
+      // applications so they redraw without waiting for keyboard input.
+      terminal.refresh(0, terminal.rows - 1)
     },
     onDisconnect: () => {
       emit('connection-change', 'disconnected')
@@ -238,7 +273,8 @@ async function initTerminal() {
     },
     onStatusChange: (status) => {
       emit('status-change', { sessionId: props.sessionId, ...status })
-    }
+    },
+    transformInput: transformTerminalInput
   })
   wsConnection.connect()
 
@@ -295,11 +331,18 @@ defineExpose({ focus, fit, getTerminal, openSearch, closeSearch })
 <template>
   <div class="terminal-pane">
     <div ref="terminalEl" class="terminal-container"></div>
+    <MobileKeyBar
+      :modifiers="modifiers"
+      @key="sendExtraKey"
+      @modifier="toggleModifier"
+    />
   </div>
 </template>
 
 <style scoped>
 .terminal-pane {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   padding: 0;
@@ -307,8 +350,9 @@ defineExpose({ focus, fit, getTerminal, openSearch, closeSearch })
 }
 
 .terminal-container {
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
 }
 
 .terminal-container :deep(.xterm) {

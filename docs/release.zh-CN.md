@@ -53,6 +53,24 @@ GitHub Actions 发布 workflow 会校验 tag 是否可以从 `origin/master` 访
 
 稳定 tag 会创建普通 GitHub Release。`.dev` tag 会创建 prerelease，并跳过 AUR 发布。
 
+## 本地校验 Workflow
+
+推送 workflow 改动前运行：
+
+```bash
+./scripts/check-github-actions.sh
+```
+
+脚本会优先运行本机安装的 `actionlint`，未安装时使用其官方 Docker 镜像。它会检查 workflow 语法、表达式、Action 参数、内嵌 Shell 脚本及常见安全问题。
+
+如需使用 `act` 额外检查本地执行计划，可运行：
+
+```bash
+./scripts/check-github-actions.sh --dry-run
+```
+
+Dry-run 会检查 job 和 step 的解析结果，但不会执行发布命令；该模式需要安装 `act`。安装仓库中的 `scripts/git-hooks/pre-push` 后，推送时会自动执行快速静态检查。
+
 ## Release Workflow 产物
 
 推送 tag 后，`.github/workflows/release.yml` 会构建：
@@ -62,7 +80,6 @@ GitHub Actions 发布 workflow 会校验 tag 是否可以从 `origin/master` 访
 | `mebtty-X.Y.Z-linux-amd64` | Linux amd64 独立可执行文件 |
 | `mebtty_X.Y.Z_amd64.deb` | Debian/Ubuntu amd64 软件包 |
 | `mebtty-X.Y.Z-1.src.tar.gz` | AUR source package |
-| `checksums.txt` | 发布产物的 SHA256 校验和 |
 
 Release notes 会通过 GitHub release-notes API 和 `.github/release.yml` 生成，然后追加安装说明和产物说明。
 
