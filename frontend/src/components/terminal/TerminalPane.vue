@@ -9,7 +9,11 @@ import 'xterm/css/xterm.css'
 import MobileKeyBar from './MobileKeyBar.vue'
 import { TerminalWebSocket } from '../../services/terminal-ws.js'
 import { useThemeStore } from '../../stores/theme'
-import { applyTerminalModifiers, terminalKeySequence } from '../../utils/terminal-keys.js'
+import {
+  applyTerminalModifiers,
+  shouldPreventTerminalBrowserShortcut,
+  terminalKeySequence
+} from '../../utils/terminal-keys.js'
 
 const props = defineProps({
   sessionId: {
@@ -199,6 +203,13 @@ async function initTerminal() {
 
   // Handle Ctrl+V / Cmd+V paste (without Shift) since xterm.js only handles Ctrl+Shift+V by default
   terminal.attachCustomKeyEventHandler((e) => {
+    // Keep terminal Alt navigation shortcuts (for example Codex's Alt+Up)
+    // from being consumed by browser menu/navigation actions.
+    if (shouldPreventTerminalBrowserShortcut(e)) {
+      e.preventDefault()
+      if (e.key === 'Alt') return false
+    }
+
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'v' || e.key === 'V' || e.code === 'KeyV')) {
       if (navigator.clipboard) {
         navigator.clipboard.readText().then((text) => {
