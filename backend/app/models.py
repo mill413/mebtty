@@ -98,6 +98,7 @@ class UserSettings(Base):
     custom_theme = Column(Text, default="{}", nullable=False)
     tab_title_format = Column(String(256), default="{user}: {cwd}", nullable=False)
     sidebar_position = Column(String(16), default="right", nullable=False)
+    sidebar_mode = Column(String(16), default="docked", nullable=False)
     session_timeout = Column(Integer, default=0, nullable=False)  # 0 = disabled, value in hours
     file_auto_save = Column(Boolean, default=True, nullable=False)
     file_show_line_numbers = Column(Boolean, default=False, nullable=False)

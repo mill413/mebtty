@@ -22,6 +22,21 @@ const SHIFTED_ASCII = {
   '/': '?'
 }
 
+const ALT_NAVIGATION_KEYS = new Set([
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'Home',
+  'End',
+  'PageUp',
+  'PageDown'
+])
+
+export function shouldPreventTerminalBrowserShortcut(event = {}) {
+  return event.key === 'Alt' || (event.altKey && ALT_NAVIGATION_KEYS.has(event.key))
+}
+
 function modifierParameter({ ctrl = false, alt = false, shift = false } = {}) {
   return 1 + (shift ? 1 : 0) + (alt ? 2 : 0) + (ctrl ? 4 : 0)
 }

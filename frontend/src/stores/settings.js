@@ -117,6 +117,7 @@ export const useSettingsStore = defineStore('settings', {
     customTheme: parseCustomTheme(localStorage.getItem('mebtty-custom-theme')),
     tabTitleFormat: '{user}: {cwd}',
     sidebarPosition: 'right',
+    sidebarMode: localStorage.getItem('mebtty-sidebar-mode') || 'docked',
     sessionTimeout: 0,
     fileAutoSave: localStorage.getItem('mebtty-file-auto-save') !== 'false',
     fileShowLineNumbers: localStorage.getItem('mebtty-file-show-line-numbers') === 'true',
@@ -148,6 +149,7 @@ export const useSettingsStore = defineStore('settings', {
         this.customTheme = parseCustomTheme(data.custom_theme)
         this.tabTitleFormat = data.tab_title_format
         this.sidebarPosition = data.sidebar_position
+        this.sidebarMode = data.sidebar_mode || 'docked'
         this.sessionTimeout = data.session_timeout
         this.fileAutoSave = data.file_auto_save !== false
         this.fileShowLineNumbers = data.file_show_line_numbers === true
@@ -171,6 +173,7 @@ export const useSettingsStore = defineStore('settings', {
         this.customTheme = parseCustomTheme(data.custom_theme)
         this.tabTitleFormat = data.tab_title_format
         this.sidebarPosition = data.sidebar_position
+        this.sidebarMode = data.sidebar_mode || 'docked'
         this.sessionTimeout = data.session_timeout
         this.fileAutoSave = data.file_auto_save !== false
         this.fileShowLineNumbers = data.file_show_line_numbers === true
@@ -187,6 +190,7 @@ export const useSettingsStore = defineStore('settings', {
       localStorage.setItem('mebtty-accent', this.accentColor)
       localStorage.setItem('mebtty-custom-theme-enabled', this.customThemeEnabled)
       localStorage.setItem('mebtty-custom-theme', JSON.stringify(this.customTheme))
+      localStorage.setItem('mebtty-sidebar-mode', this.sidebarMode)
       localStorage.setItem('mebtty-file-auto-save', this.fileAutoSave)
       localStorage.setItem('mebtty-file-show-line-numbers', this.fileShowLineNumbers)
       localStorage.setItem('mebtty-plugin-settings', JSON.stringify(this.pluginSettings))

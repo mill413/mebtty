@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { applyTerminalModifiers, terminalKeySequence } from '../src/utils/terminal-keys.js'
+import {
+  applyTerminalModifiers,
+  shouldPreventTerminalBrowserShortcut,
+  terminalKeySequence
+} from '../src/utils/terminal-keys.js'
 
 test('generates standard terminal navigation sequences', () => {
   assert.equal(terminalKeySequence('arrowLeft'), '\x1b[D')
@@ -41,4 +45,12 @@ test('applies one-shot modifiers to typed characters', () => {
 
 test('does not alter pasted or composed multi-character input', () => {
   assert.equal(applyTerminalModifiers('hello', { ctrl: true, shift: true }), 'hello')
+})
+
+test('prevents browser shortcuts for terminal Alt navigation', () => {
+  assert.equal(shouldPreventTerminalBrowserShortcut({ key: 'Alt', altKey: true }), true)
+  assert.equal(shouldPreventTerminalBrowserShortcut({ key: 'ArrowUp', altKey: true }), true)
+  assert.equal(shouldPreventTerminalBrowserShortcut({ key: 'ArrowLeft', altKey: true }), true)
+  assert.equal(shouldPreventTerminalBrowserShortcut({ key: 'ArrowUp', altKey: false }), false)
+  assert.equal(shouldPreventTerminalBrowserShortcut({ key: 'a', altKey: true }), false)
 })
