@@ -120,6 +120,10 @@ async def migrate_db():
             await conn.execute(text("ALTER TABLE user_settings ADD COLUMN file_auto_save BOOLEAN DEFAULT 1 NOT NULL"))
             logger.info("Migration: added 'file_auto_save' column to user_settings")
 
+        if "sidebar_mode" not in settings_columns:
+            await conn.execute(text("ALTER TABLE user_settings ADD COLUMN sidebar_mode VARCHAR(16) DEFAULT 'docked' NOT NULL"))
+            logger.info("Migration: added 'sidebar_mode' column to user_settings")
+
         if "file_show_line_numbers" not in settings_columns:
             await conn.execute(text("ALTER TABLE user_settings ADD COLUMN file_show_line_numbers BOOLEAN DEFAULT 0 NOT NULL"))
             logger.info("Migration: added 'file_show_line_numbers' column to user_settings")

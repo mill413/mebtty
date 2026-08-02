@@ -450,30 +450,38 @@ function logout() {
       </div>
     </div>
 
-    <div class="terminal-main">
-      <FileBrowser
-        v-if="showFileBrowser && settingsStore.sidebarOnLeft"
-        :position="settingsStore.sidebarPosition"
-        :initialPath="fileBrowserPath"
-        :providers="fileProviders"
-        :iconPack="activeIconPack"
-        @close="closeFileBrowser"
-        @open-file="handleOpenFile"
-        @path-change="handleFileBrowserPathChange"
-      />
-      <FileEditorPane
-        v-if="activeFileItem && settingsStore.sidebarOnLeft"
-        :item="activeFileItem"
-        :position="settingsStore.sidebarPosition"
-        @close="closeFileEditor"
-        @dirty-change="fileEditorDirty = $event"
-      />
-      <PluginPanelHost
-        v-if="activePluginPanel && settingsStore.sidebarOnLeft"
-        :panel="activePluginPanel"
-        :position="settingsStore.sidebarPosition"
-        @close="closePluginPanel"
-      />
+    <div
+      class="terminal-main"
+      :class="{ 'sidebar-overlay': settingsStore.sidebarMode === 'overlay' }"
+    >
+      <div
+        v-if="settingsStore.sidebarOnLeft && (showFileBrowser || activeFileItem || activePluginPanel)"
+        class="sidebar-stack sidebar-left"
+      >
+        <FileBrowser
+          v-if="showFileBrowser"
+          :position="settingsStore.sidebarPosition"
+          :initialPath="fileBrowserPath"
+          :providers="fileProviders"
+          :iconPack="activeIconPack"
+          @close="closeFileBrowser"
+          @open-file="handleOpenFile"
+          @path-change="handleFileBrowserPathChange"
+        />
+        <FileEditorPane
+          v-if="activeFileItem"
+          :item="activeFileItem"
+          :position="settingsStore.sidebarPosition"
+          @close="closeFileEditor"
+          @dirty-change="fileEditorDirty = $event"
+        />
+        <PluginPanelHost
+          v-if="activePluginPanel"
+          :panel="activePluginPanel"
+          :position="settingsStore.sidebarPosition"
+          @close="closePluginPanel"
+        />
+      </div>
       <div class="terminal-body">
         <!-- Settings tab content -->
         <SettingsView
@@ -569,29 +577,34 @@ function logout() {
           </div>
         </div>
       </div>
-      <FileEditorPane
-        v-if="activeFileItem && !settingsStore.sidebarOnLeft"
-        :item="activeFileItem"
-        :position="settingsStore.sidebarPosition"
-        @close="closeFileEditor"
-        @dirty-change="fileEditorDirty = $event"
-      />
-      <PluginPanelHost
-        v-if="activePluginPanel && !settingsStore.sidebarOnLeft"
-        :panel="activePluginPanel"
-        :position="settingsStore.sidebarPosition"
-        @close="closePluginPanel"
-      />
-      <FileBrowser
-        v-if="showFileBrowser && !settingsStore.sidebarOnLeft"
-        :position="settingsStore.sidebarPosition"
-        :initialPath="fileBrowserPath"
-        :providers="fileProviders"
-        :iconPack="activeIconPack"
-        @close="closeFileBrowser"
-        @open-file="handleOpenFile"
-        @path-change="handleFileBrowserPathChange"
-      />
+      <div
+        v-if="!settingsStore.sidebarOnLeft && (showFileBrowser || activeFileItem || activePluginPanel)"
+        class="sidebar-stack sidebar-right"
+      >
+        <FileEditorPane
+          v-if="activeFileItem"
+          :item="activeFileItem"
+          :position="settingsStore.sidebarPosition"
+          @close="closeFileEditor"
+          @dirty-change="fileEditorDirty = $event"
+        />
+        <PluginPanelHost
+          v-if="activePluginPanel"
+          :panel="activePluginPanel"
+          :position="settingsStore.sidebarPosition"
+          @close="closePluginPanel"
+        />
+        <FileBrowser
+          v-if="showFileBrowser"
+          :position="settingsStore.sidebarPosition"
+          :initialPath="fileBrowserPath"
+          :providers="fileProviders"
+          :iconPack="activeIconPack"
+          @close="closeFileBrowser"
+          @open-file="handleOpenFile"
+          @path-change="handleFileBrowserPathChange"
+        />
+      </div>
     </div>
 
     <StatusBar
@@ -843,6 +856,32 @@ function logout() {
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
+}
+
+.sidebar-stack {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.terminal-main.sidebar-overlay .sidebar-stack {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 20;
+  max-width: 100%;
+  overflow-x: auto;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.28);
+}
+
+.terminal-main.sidebar-overlay .sidebar-left {
+  left: 0;
+}
+
+.terminal-main.sidebar-overlay .sidebar-right {
+  right: 0;
 }
 
 .welcome-page {

@@ -90,6 +90,7 @@ const settingSections = [
     label: 'settings.sectionFiles',
     children: [
       { key: 'files-sidebar-position', label: 'settings.sidebarPosition' },
+      { key: 'files-sidebar-mode', label: 'settings.sidebarMode' },
       { key: 'files-icon-pack', label: 'settings.fileIconPack', visible: () => pluginIconPacks.value.length > 0 },
       { key: 'files-auto-save', label: 'settings.fileAutoSave' },
       { key: 'files-line-numbers', label: 'settings.fileLineNumbers' }
@@ -319,6 +320,10 @@ async function changePassword() {
 
 function changeSidebarPosition(pos) {
   settingsStore.updateSettings({ sidebar_position: pos })
+}
+
+function changeSidebarMode(mode) {
+  settingsStore.updateSettings({ sidebar_mode: mode })
 }
 
 let timeoutDebounce = null
@@ -772,6 +777,29 @@ function pluginPermissionLabel(permission) {
                     <line x1="15" y1="3" x2="15" y2="21" />
                   </svg>
                   {{ t('settings.right') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row" :ref="(el) => setSectionRef('files-sidebar-mode', el)">
+            <div class="setting-info">
+              <h3>{{ t('settings.sidebarMode') }}</h3>
+              <p>{{ t('settings.sidebarModeDesc') }}</p>
+            </div>
+            <div class="setting-control">
+              <div class="toggle-group">
+                <button
+                  :class="{ active: settingsStore.sidebarMode === 'docked' }"
+                  @click="changeSidebarMode('docked')"
+                >
+                  {{ t('settings.sidebarDocked') }}
+                </button>
+                <button
+                  :class="{ active: settingsStore.sidebarMode === 'overlay' }"
+                  @click="changeSidebarMode('overlay')"
+                >
+                  {{ t('settings.sidebarOverlay') }}
                 </button>
               </div>
             </div>

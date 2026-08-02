@@ -89,6 +89,7 @@ class UserSettingsUpdate(BaseModel):
     custom_theme: Optional[str] = None
     tab_title_format: Optional[str] = None
     sidebar_position: Optional[str] = None
+    sidebar_mode: Optional[str] = None
     session_timeout: Optional[int] = None
     file_auto_save: Optional[bool] = None
     file_show_line_numbers: Optional[bool] = None
@@ -99,6 +100,13 @@ class UserSettingsUpdate(BaseModel):
     def validate_theme_mode(cls, value: Optional[str]) -> Optional[str]:
         if value is not None and value not in {"system", "dark", "light"}:
             raise ValueError("theme_mode must be one of: system, dark, light")
+        return value
+
+    @field_validator("sidebar_mode")
+    @classmethod
+    def validate_sidebar_mode(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in {"docked", "overlay"}:
+            raise ValueError("sidebar_mode must be one of: docked, overlay")
         return value
 
     @field_validator("accent_color")
@@ -165,6 +173,7 @@ class UserSettingsResponse(BaseModel):
     custom_theme: str
     tab_title_format: str
     sidebar_position: str
+    sidebar_mode: str
     session_timeout: int
     file_auto_save: bool
     file_show_line_numbers: bool
