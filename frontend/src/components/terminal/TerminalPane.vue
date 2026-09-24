@@ -201,7 +201,6 @@ async function initTerminal() {
 
   terminal.open(terminalEl.value)
 
-  // Handle Ctrl+V / Cmd+V paste (without Shift) since xterm.js only handles Ctrl+Shift+V by default
   terminal.attachCustomKeyEventHandler((e) => {
     // Keep terminal Alt navigation shortcuts (for example Codex's Alt+Up)
     // from being consumed by browser menu/navigation actions.
@@ -211,15 +210,9 @@ async function initTerminal() {
     }
 
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'v' || e.key === 'V' || e.code === 'KeyV')) {
-      if (navigator.clipboard) {
-        navigator.clipboard.readText().then((text) => {
-          if (text && wsConnection) {
-            wsConnection.sendData(text)
-          }
-        }).catch(() => {
-          // Clipboard read may fail in insecure contexts; silently ignore
-        })
-      }
+      // Leave the browser's paste event to xterm, which handles line endings
+      // and bracketed paste. This callback runs on both keydown and keyup;
+      // reading the clipboard here would send the same text multiple times.
       return false
     }
     return true
