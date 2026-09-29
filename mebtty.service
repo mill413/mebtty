@@ -32,9 +32,10 @@ SyslogIdentifier=mebtty
 # MebTTY starts as root so it can authenticate local users and drop terminal
 # sessions to the selected user's uid/gid, similar to sshd/login.
 NoNewPrivileges=false
-ProtectSystem=strict
-# PAM modules such as pam_faillock need to update runtime auth state.
-ReadWritePaths=/var/lib/mebtty /home /run/faillock /var/run/faillock
+# Terminal children inherit the service's mount restrictions. Keep the host
+# filesystem writable so sudo can update /run/sudo and package managers can
+# install into /usr, /etc and /var. Normal Unix permissions still apply.
+ProtectSystem=false
 ProtectHome=false
 PrivateTmp=true
 
