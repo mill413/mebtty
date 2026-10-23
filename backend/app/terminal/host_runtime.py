@@ -64,6 +64,7 @@ class HostRuntime(Runtime):
 
         self._username = username
 
+        # Preserve inherited locale settings so shell startup files can customize them.
         child_env = os.environ.copy()
         child_env.update({
             "TERM": "xterm-256color",
@@ -72,8 +73,6 @@ class HostRuntime(Runtime):
             # which is supported by xterm-addon-image in the browser.
             "TERM_PROGRAM": "iTerm.app",
             "TERM_PROGRAM_VERSION": "3.5",
-            "LANG": "en_US.UTF-8",
-            "LC_ALL": "en_US.UTF-8",
             "HOME": home,
             "USER": username,
             "LOGNAME": username,
