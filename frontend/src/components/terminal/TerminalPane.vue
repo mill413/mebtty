@@ -14,6 +14,7 @@ import {
   shouldPreventTerminalBrowserShortcut,
   terminalKeySequence
 } from '../../utils/terminal-keys.js'
+import { DEFAULT_TERMINAL_LINE_HEIGHT } from '../../utils/terminal-options.js'
 
 const props = defineProps({
   sessionId: {
@@ -181,7 +182,7 @@ async function initTerminal() {
     scrollback: 5000,
     fontSize: 14,
     fontFamily: "'MebTTY Mono', 'JetBrainsMonoNL Nerd Font', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
-    lineHeight: 1.3,
+    lineHeight: DEFAULT_TERMINAL_LINE_HEIGHT,
     allowProposedApi: true,
     theme: terminalThemes[themeStore.resolved]
   })
